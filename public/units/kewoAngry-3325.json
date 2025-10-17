@@ -1,0 +1,128 @@
+{
+    "id": "kewoAngry-3325",
+    "name": "Angry Kewo",
+    "description": "Angry Kewo: Gets stronger when attacked.",
+    "cost": 115,
+    "life": 15,
+    "speed": 1.8,
+    "scale": 5,
+    "damage": 8,
+    "attackType": "melee",
+    "graphics": [
+        [
+            0,
+            0,
+            "#FF8C00",
+            0,
+            0
+        ],
+        [
+            0,
+            "#FF8C00",
+            "#FF8C00",
+            "#FF8C00",
+            0
+        ],
+        [
+            0,
+            "#FF8C00",
+            "#000000",
+            "#FF8C00",
+            0
+        ],
+        [
+            "#8B4513",
+            "#FF8C00",
+            "#FF8C00",
+            "#FF8C00",
+            "#8B4513"
+        ],
+        [
+            0,
+            "#8B4513",
+            "#8B4513",
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ]
+    ],
+    "sounds": {
+        "spawn": [
+            "square",
+            165,
+            350,
+            10,
+            85,
+            700,
+            0,
+            9,
+            9,
+            true,
+            false,
+            0,
+            0,
+            0
+        ],
+        "death": [
+            "sawtooth",
+            90,
+            1100,
+            17,
+            95,
+            450,
+            0,
+            0,
+            0,
+            true,
+            false,
+            0,
+            0,
+            0
+        ],
+        "attack": [
+            "sawtooth",
+            200,
+            180,
+            15,
+            75,
+            850,
+            0,
+            7,
+            7,
+            true,
+            false,
+            0,
+            0,
+            0
+        ]
+    },
+    "attackRange": 55,
+    "attackSpeed": 750,
+    "swordGraphics": {
+        "width": 45,
+        "height": 5,
+        "color": "#FF8C00"
+    },
+    "skills": [
+        "skill-angry-3325"
+    ],
+    "effects": {
+        "spawn": "fx-basicSpawn",
+        "death": "fx-basicDeath",
+        "attack": "fx-basicAttack",
+        "continuous": "fx-basicGlow"
+    }
+}

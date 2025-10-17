@@ -1,0 +1,128 @@
+{
+    "id": "kewoShield",
+    "name": "Shield Kewo",
+    "description": "Shield Kewo: Reduces incoming damage.",
+    "cost": 166,
+    "life": 20,
+    "speed": 0.8,
+    "scale": 5,
+    "damage": 5,
+    "attackType": "melee",
+    "graphics": [
+        [
+            0,
+            0,
+            "#C0C0C0",
+            0,
+            0
+        ],
+        [
+            0,
+            "#C0C0C0",
+            "#C0C0C0",
+            "#C0C0C0",
+            0
+        ],
+        [
+            0,
+            "#C0C0C0",
+            "#000000",
+            "#C0C0C0",
+            null
+        ],
+        [
+            "#8B4513",
+            "#C0C0C0",
+            "#C0C0C0",
+            "#C0C0C0",
+            "#8B4513"
+        ],
+        [
+            0,
+            "#8B4513",
+            "#8B4513",
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ]
+    ],
+    "sounds": {
+        "spawn": [
+            "sine",
+            784,
+            300,
+            1,
+            20,
+            2500,
+            3,
+            0,
+            0,
+            false,
+            true,
+            40,
+            60,
+            80
+        ],
+        "death": [
+            "square",
+            987,
+            700,
+            5,
+            50,
+            1500,
+            10,
+            4,
+            4,
+            true,
+            false,
+            0,
+            0,
+            0
+        ],
+        "attack": [
+            "triangle",
+            587,
+            200,
+            2,
+            30,
+            2000,
+            4,
+            0,
+            0,
+            false,
+            false,
+            0,
+            0,
+            0
+        ]
+    },
+    "attackRange": 45,
+    "attackSpeed": 1200,
+    "swordGraphics": {
+        "width": 35,
+        "height": 4,
+        "color": "#c0c0c0"
+    },
+    "skills": [
+        "skill-shieldGenerator"
+    ],
+    "effects": {
+        "spawn": "fx-basicSpawn",
+        "death": "fx-basicDeath",
+        "attack": "fx-basicAttack",
+        "continuous": "fx-basicGlow"
+    }
+}

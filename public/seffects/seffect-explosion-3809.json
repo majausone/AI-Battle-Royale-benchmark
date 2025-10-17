@@ -1,0 +1,12 @@
+{
+    "id": "seffect-explosion-3809",
+    "effectType": "AURA",
+    "duration": 200,
+    "auraRadius": 120,
+    "targetType": "enemies",
+    "damageAmount": 20,
+    "pulseInterval": 100,
+    "sourceFx": {
+        "start": "fx-explosion-start-3809"
+    }
+}

@@ -1,0 +1,125 @@
+{
+    "id": "kewoJetpack",
+    "name": "Jetpack Kewo",
+    "description": "Jetpack Kewo: Moves quickly and attacks.",
+    "cost": 105,
+    "life": 10,
+    "speed": 3,
+    "scale": 5,
+    "damage": 5,
+    "attackType": "melee",
+    "graphics": [
+        [
+            0,
+            0,
+            "#32CD32",
+            0,
+            0
+        ],
+        [
+            0,
+            "#32CD32",
+            "#32CD32",
+            "#32CD32",
+            0
+        ],
+        [
+            0,
+            "#32CD32",
+            "#000000",
+            "#32CD32",
+            0
+        ],
+        [
+            "#8B4513",
+            "#32CD32",
+            "#32CD32",
+            "#32CD32",
+            "#8B4513"
+        ],
+        [
+            0,
+            "#8B4513",
+            "#8B4513",
+            "#8B4513",
+            0
+        ],
+        [
+            "#C0C0C0",
+            "#8B4513",
+            0,
+            "#8B4513",
+            "#C0C0C0"
+        ],
+        [
+            "#FF4500",
+            "#C0C0C0",
+            0,
+            "#C0C0C0",
+            "#FF4500"
+        ]
+    ],
+    "sounds": {
+        "spawn": [
+            "square",
+            600,
+            200,
+            12,
+            60,
+            2000,
+            8,
+            4,
+            4,
+            true,
+            false,
+            0,
+            0,
+            0
+        ],
+        "death": [
+            "square",
+            300,
+            600,
+            15,
+            80,
+            1000,
+            12,
+            6,
+            6,
+            true,
+            false,
+            0,
+            0,
+            0
+        ],
+        "attack": [
+            "square",
+            800,
+            50,
+            8,
+            40,
+            1500,
+            6,
+            2,
+            2,
+            false,
+            false,
+            0,
+            0,
+            0
+        ]
+    },
+    "attackRange": 60,
+    "attackSpeed": 500,
+    "swordGraphics": {
+        "width": 40,
+        "height": 4,
+        "color": "#000000"
+    },
+    "effects": {
+        "spawn": "fx-basicSpawn",
+        "death": "fx-basicDeath",
+        "attack": "fx-basicAttack",
+        "continuous": "fx-basicGlow"
+    }
+}

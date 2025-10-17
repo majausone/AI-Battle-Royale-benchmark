@@ -1,0 +1,128 @@
+{
+    "id": "kewoFrost",
+    "name": "Frost Kewo",
+    "description": "Frost Kewo: Slows nearby enemies with freezing aura.",
+    "cost": 163,
+    "life": 10,
+    "speed": 2,
+    "scale": 5,
+    "damage": 7,
+    "attackType": "melee",
+    "graphics": [
+        [
+            0,
+            0,
+            "#ADD8E6",
+            0,
+            0
+        ],
+        [
+            0,
+            "#ADD8E6",
+            "#ADD8E6",
+            "#ADD8E6",
+            0
+        ],
+        [
+            0,
+            "#ADD8E6",
+            "#000000",
+            "#ADD8E6",
+            0
+        ],
+        [
+            "#8B4513",
+            "#ADD8E6",
+            "#ADD8E6",
+            "#ADD8E6",
+            "#8B4513"
+        ],
+        [
+            0,
+            "#8B4513",
+            "#8B4513",
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ]
+    ],
+    "sounds": {
+        "spawn": [
+            "sine",
+            1200,
+            300,
+            0.2,
+            30,
+            4000,
+            3,
+            0,
+            0,
+            false,
+            true,
+            40,
+            60,
+            80
+        ],
+        "death": [
+            "sine",
+            1600,
+            800,
+            0.1,
+            20,
+            3000,
+            5,
+            2,
+            2,
+            false,
+            true,
+            60,
+            80,
+            40
+        ],
+        "attack": [
+            "triangle",
+            800,
+            100,
+            0.5,
+            40,
+            2000,
+            2,
+            0,
+            0,
+            false,
+            false,
+            0,
+            0,
+            0
+        ]
+    },
+    "attackRange": 45,
+    "attackSpeed": 1000,
+    "swordGraphics": {
+        "width": 35,
+        "height": 4,
+        "color": "#add8e6"
+    },
+    "skills": [
+        "skill-freezeAura"
+    ],
+    "effects": {
+        "spawn": "fx-basicSpawn.js",
+        "death": "fx-basicDeath.js",
+        "attack": "fx-basicAttack.js",
+        "continuous": "fx-basicGlow.js"
+    }
+}

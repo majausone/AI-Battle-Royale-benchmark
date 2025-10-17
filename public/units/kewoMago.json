@@ -1,0 +1,136 @@
+{
+    "id": "kewoMago",
+    "name": "Mage Kewo",
+    "description": "Mage Kewo: Casts spells and can summon spiders.",
+    "cost": 143,
+    "life": 10,
+    "speed": 1,
+    "scale": 5,
+    "damage": 5,
+    "attackType": "ranged",
+    "graphics": [
+        [
+            0,
+            0,
+            "#4B0082",
+            0,
+            0
+        ],
+        [
+            0,
+            "#4B0082",
+            "#4B0082",
+            "#4B0082",
+            0
+        ],
+        [
+            0,
+            "#32CD32",
+            "#000000",
+            "#32CD32",
+            0
+        ],
+        [
+            "#8B4513",
+            "#4B0082",
+            "#4B0082",
+            "#4B0082",
+            "#8B4513"
+        ],
+        [
+            0,
+            "#4B0082",
+            "#4B0082",
+            "#4B0082",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            0,
+            "#FFD700",
+            0,
+            0
+        ]
+    ],
+    "sounds": {
+        "spawn": [
+            "sine",
+            880,
+            600,
+            0.2,
+            40,
+            4000,
+            4,
+            2,
+            2,
+            false,
+            true,
+            90,
+            70,
+            50
+        ],
+        "death": [
+            "sine",
+            162,
+            700,
+            0.1,
+            60,
+            3000,
+            8,
+            5,
+            5,
+            true,
+            true,
+            80,
+            60,
+            40
+        ],
+        "attack": [
+            "sine",
+            1320,
+            200,
+            1,
+            30,
+            2500,
+            3,
+            0,
+            0,
+            false,
+            true,
+            70,
+            50,
+            30
+        ]
+    },
+    "optimalRange": 350,
+    "projectileSpeed": 4,
+    "attackInterval": {
+        "min": 100,
+        "max": 7000
+    },
+    "projectileColor": "#8a2be2",
+    "projectileTrailColor": "#8a2be2",
+    "skills": [
+        "skill-summonSpider"
+    ],
+    "effects": {
+        "spawn": "fx-basicSpawn",
+        "death": "fx-basicDeath",
+        "attack": "fx-basicAttack",
+        "continuous": "fx-basicGlow"
+    }
+}

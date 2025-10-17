@@ -1,0 +1,128 @@
+{
+    "id": "kewoDebuff-3741",
+    "name": "Debuffer Kewo",
+    "description": "Debuffer Kewo: Weakens enemies it attacks.",
+    "cost": 150,
+    "life": 12,
+    "speed": 1.5,
+    "scale": 5,
+    "damage": 6,
+    "attackType": "melee",
+    "graphics": [
+        [
+            0,
+            0,
+            "#800080",
+            0,
+            0
+        ],
+        [
+            0,
+            "#800080",
+            "#800080",
+            "#800080",
+            0
+        ],
+        [
+            0,
+            "#800080",
+            "#000000",
+            "#800080",
+            0
+        ],
+        [
+            "#8B4513",
+            "#800080",
+            "#800080",
+            "#800080",
+            "#8B4513"
+        ],
+        [
+            0,
+            "#8B4513",
+            "#8B4513",
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ]
+    ],
+    "sounds": {
+        "spawn": [
+            "sine",
+            330,
+            400,
+            2,
+            40,
+            1500,
+            4,
+            1,
+            1,
+            false,
+            true,
+            60,
+            40,
+            20
+        ],
+        "death": [
+            "sawtooth",
+            165,
+            700,
+            5,
+            60,
+            800,
+            8,
+            3,
+            3,
+            true,
+            false,
+            0,
+            0,
+            0
+        ],
+        "attack": [
+            "square",
+            250,
+            150,
+            3,
+            30,
+            1200,
+            5,
+            2,
+            2,
+            false,
+            false,
+            0,
+            0,
+            0
+        ]
+    },
+    "attackRange": 50,
+    "attackSpeed": 900,
+    "swordGraphics": {
+        "width": 40,
+        "height": 4,
+        "color": "#800080"
+    },
+    "skills": [
+        "skill-debuff-3741"
+    ],
+    "effects": {
+        "spawn": "fx-basicSpawn",
+        "death": "fx-basicDeath",
+        "attack": "fx-basicAttack",
+        "continuous": "fx-basicGlow"
+    }
+}

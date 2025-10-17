@@ -1,0 +1,20 @@
+{
+    "id": "seffect-transformation",
+    "effectType": "MULTI_STAT",
+    "duration": 4000,
+    "effects": [
+        {
+            "stat": "damage",
+            "value": 10
+        },
+        {
+            "stat": "speed",
+            "value": 0.8
+        }
+    ],
+    "sourceFx": {
+        "start": "fx-transformStart",
+        "continuous": "fx-transformContinuous"
+    },
+    "targetFx": {}
+}

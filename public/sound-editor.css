@@ -1,0 +1,252 @@
+.sound-manager {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    display: none;
+}
+
+.sound-manager-overlay {
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.sound-manager-content {
+    width: 90%;
+    height: 90%;
+    background: #222;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.sound-manager-header {
+    padding: 15px;
+    background: #2a2a2a;
+    border-bottom: 1px solid #444;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sound-manager-header h2 {
+    margin: 0;
+    color: #4CAF50;
+    font-size: 28px;
+}
+
+.header-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.header-button {
+    width: 32px;
+    height: 32px;
+    background: #444;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.play-button {
+    background: #4CAF50;
+}
+
+.random-button {
+    background: #2196F3;
+}
+
+.close-button:hover {
+    background: #555;
+}
+
+.sound-manager-body {
+    flex: 1;
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.control-section {
+    background: #333;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.control-section h3 {
+    margin: 0 0 15px 0;
+    color: #4CAF50;
+    font-size: 18px;
+}
+
+.oscillator-type {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.oscillator-type button {
+    padding: 8px 16px;
+    background: #444;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.oscillator-type button.active {
+    background: #4CAF50;
+}
+
+.slider-group {
+    margin-bottom: 20px;
+}
+
+.slider-group label {
+    display: block;
+    font-size: 12px;
+    color: #ccc;
+    margin-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.value-display {
+    color: #4CAF50;
+}
+
+input[type="range"] {
+    width: 100%;
+    height: 5px;
+    border-radius: 2px;
+    -webkit-appearance: none;
+    background: #555;
+    margin-top: 5px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 15px;
+    height: 15px;
+    background: #4CAF50;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.chaos-section {
+    background: #333;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.chaos-section h3 {
+    margin: 0 0 15px 0;
+    color: #4CAF50;
+    font-size: 18px;
+}
+
+.chaos-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.chaos-slider {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.chaos-slider label {
+    color: #ccc;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.switch-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #333;
+    transition: .4s;
+    border-radius: 24px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: #4CAF50;
+}
+
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+
+.switch-label {
+    color: #ccc;
+    font-size: 14px;
+}
+
+.harmonizer-section {
+    background: #333;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.harmonizer-section h3 {
+    margin: 0 0 15px 0;
+    color: #4CAF50;
+    font-size: 18px;
+}
+
+.assign-button {
+    background: #2196F3;
+}

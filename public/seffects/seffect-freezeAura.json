@@ -1,0 +1,12 @@
+{
+    "id": "seffect-freezeAura",
+    "effectType": "AURA",
+    "duration": -1,
+    "auraRadius": 150,
+    "targetType": "enemies",
+    "targetEffectId": "seffect-freezeTarget",
+    "pulseInterval": 1000,
+    "sourceFx": {
+        "continuous": "fx-freezeContinuous"
+    }
+}

@@ -1,0 +1,128 @@
+{
+    "id": "kewoDoppelganger",
+    "name": "Doppelganger Kewo",
+    "description": "Doppelganger Kewo: Creates temporary clones.",
+    "cost": 120,
+    "life": 10,
+    "speed": 1.2,
+    "scale": 5,
+    "damage": 8,
+    "attackType": "melee",
+    "graphics": [
+        [
+            0,
+            0,
+            "#483D8B",
+            0,
+            0
+        ],
+        [
+            0,
+            "#483D8B",
+            "#483D8B",
+            "#483D8B",
+            0
+        ],
+        [
+            0,
+            "#483D8B",
+            "#000000",
+            "#483D8B",
+            0
+        ],
+        [
+            "#8B4513",
+            "#483D8B",
+            "#483D8B",
+            "#483D8B",
+            "#8B4513"
+        ],
+        [
+            0,
+            "#8B4513",
+            "#8B4513",
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ]
+    ],
+    "sounds": {
+        "spawn": [
+            "sine",
+            440,
+            200,
+            5,
+            30,
+            3000,
+            4,
+            2,
+            2,
+            false,
+            true,
+            80,
+            60,
+            40
+        ],
+        "death": [
+            "sine",
+            880,
+            400,
+            10,
+            50,
+            2000,
+            8,
+            5,
+            5,
+            true,
+            true,
+            60,
+            40,
+            20
+        ],
+        "attack": [
+            "sine",
+            660,
+            150,
+            2,
+            20,
+            1500,
+            3,
+            0,
+            0,
+            false,
+            false,
+            0,
+            0,
+            0
+        ]
+    },
+    "attackRange": 45,
+    "attackSpeed": 900,
+    "swordGraphics": {
+        "width": 35,
+        "height": 4,
+        "color": "#483d8b"
+    },
+    "skills": [
+        "skill-cloneCreator"
+    ],
+    "effects": {
+        "spawn": "fx-basicSpawn",
+        "death": "fx-basicDeath",
+        "attack": "fx-basicAttack",
+        "continuous": "fx-basicGlow"
+    }
+}

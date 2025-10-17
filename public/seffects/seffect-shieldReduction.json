@@ -1,0 +1,13 @@
+{
+    "id": "seffect-shieldReduction",
+    "effectType": "STAT",
+    "duration": 2000,
+    "stat": "damage",
+    "value": 0,
+    "shieldAmount": 2,
+    "sourceFx": {
+        "start": "fx-shieldStart",
+        "continuous": "fx-shieldContinuous"
+    },
+    "targetFx": {}
+}

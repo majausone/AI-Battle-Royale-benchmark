@@ -1,0 +1,13 @@
+{
+    "id": "seffect-healAura",
+    "effectType": "AURA",
+    "duration": -1,
+    "auraRadius": 100,
+    "targetType": "allies,self",
+    "healAmount": 5,
+    "pulseInterval": 2000,
+    "sourceFx": {
+        "continuous": "fx-healContinuous"
+    },
+    "pulseFx": "fx-healPulse"
+}

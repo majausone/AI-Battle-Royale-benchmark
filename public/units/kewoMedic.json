@@ -1,0 +1,128 @@
+{
+    "id": "kewoMedic",
+    "name": "Medic Kewo",
+    "description": "Medic Kewo: Heals nearby allies.",
+    "cost": 113,
+    "life": 20,
+    "speed": 1,
+    "scale": 5,
+    "damage": 2,
+    "attackType": "melee",
+    "graphics": [
+        [
+            0,
+            0,
+            "#FFFFFF",
+            0,
+            0
+        ],
+        [
+            0,
+            "#FFFFFF",
+            "#FFFFFF",
+            "#FFFFFF",
+            0
+        ],
+        [
+            0,
+            "#FFFFFF",
+            "#FF0000",
+            "#FFFFFF",
+            0
+        ],
+        [
+            "#8B4513",
+            "#FFFFFF",
+            "#FFFFFF",
+            "#FFFFFF",
+            "#8B4513"
+        ],
+        [
+            0,
+            "#8B4513",
+            "#8B4513",
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ]
+    ],
+    "sounds": {
+        "spawn": [
+            "sine",
+            523,
+            400,
+            0.5,
+            20,
+            3000,
+            2,
+            0,
+            0,
+            false,
+            true,
+            50,
+            70,
+            90
+        ],
+        "death": [
+            "sine",
+            784,
+            800,
+            1,
+            40,
+            2000,
+            6,
+            3,
+            3,
+            true,
+            true,
+            70,
+            90,
+            50
+        ],
+        "attack": [
+            "triangle",
+            659,
+            150,
+            0.2,
+            10,
+            1500,
+            1,
+            0,
+            0,
+            false,
+            false,
+            0,
+            0,
+            0
+        ]
+    },
+    "attackRange": 50,
+    "attackSpeed": 1000,
+    "swordGraphics": {
+        "width": 40,
+        "height": 4,
+        "color": "#ffffff"
+    },
+    "skills": [
+        "skill-healAura"
+    ],
+    "effects": {
+        "spawn": "fx-basicSpawn.js",
+        "death": "fx-basicDeath.js",
+        "attack": "fx-basicAttack.js",
+        "continuous": "fx-basicGlow.js"
+    }
+}

@@ -1,0 +1,13 @@
+{
+    "id": "seffect-totemField-6846",
+    "effectType": "AURA",
+    "duration": 5000,
+    "noUnit": "true",
+    "auraRadius": 100,
+    "targetType": "allies",
+    "targetEffectId": "seffect-totemBuff-6846",
+    "pulseInterval": 1000,
+    "sourceFx": {
+        "continuous": "fx-totemFieldContinuous-6846"
+    }
+}

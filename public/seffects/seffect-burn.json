@@ -1,0 +1,11 @@
+{
+    "id": "seffect-burn",
+    "effectType": "STAT",
+    "duration": 3000,
+    "damageAmount": 1,
+    "pulseInterval": 500,
+    "targetFx": {
+        "start": "fx-burnStart",
+        "continuous": "fx-burnContinuous"
+    }
+}

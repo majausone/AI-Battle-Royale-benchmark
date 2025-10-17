@@ -1,0 +1,13 @@
+{
+    "id": "seffect-poisonTrail",
+    "effectType": "AURA",
+    "duration": -1,
+    "auraRadius": 150,
+    "targetType": "enemies",
+    "damageAmount": 2,
+    "pulseInterval": 500,
+    "sourceFx": {
+        "continuous": "fx-poisonContinuous"
+    },
+    "pulseFx": "fx-poisonStart"
+}

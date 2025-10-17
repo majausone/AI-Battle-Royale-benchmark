@@ -1,0 +1,26 @@
+Analyze the following units and determine a fair price for each based on their characteristics, abilities, and effects.
+The total available budget is 1000 gold.
+Prices should be between 20 and 1000 gold.
+
+## Response Format
+Respond ONLY with a JSON in this format:
+
+{
+  "prices": {
+    "unit-id": integer-number
+  }
+}
+
+Example with real names:
+
+{
+  "prices": {
+    "kewoBasico": 50,
+    "kewoArco": 80,
+    "kewoAngry-3325": 120,
+    "kewoAvatar-2093": 150,
+    "kewoTotem-6846": 180
+  }
+}
+
+## Available Data:

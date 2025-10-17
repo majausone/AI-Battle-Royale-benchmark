@@ -1,0 +1,11 @@
+{
+    "id": "seffect-projectileImpact",
+    "effectType": "PROJECTILE",
+    "duration": 4000,
+    "stat": "speed",
+    "value": -0.3,
+    "sourceFx": {},
+    "targetFx": {
+        "start": "fx-customProjectileImpact"
+    }
+}

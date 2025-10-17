@@ -1,0 +1,128 @@
+{
+    "id": "kewoVenom",
+    "name": "Venom Kewo",
+    "description": "Venom Kewo: Leaves poisonous trails.",
+    "cost": 179,
+    "life": 10,
+    "speed": 1.5,
+    "scale": 5,
+    "damage": 5,
+    "attackType": "melee",
+    "graphics": [
+        [
+            0,
+            0,
+            "#4B0082",
+            0,
+            0
+        ],
+        [
+            0,
+            "#4B0082",
+            "#4B0082",
+            "#4B0082",
+            0
+        ],
+        [
+            0,
+            "#00FF00",
+            "#000000",
+            "#00FF00",
+            0
+        ],
+        [
+            "#8B4513",
+            "#00FF00",
+            "#00FF00",
+            "#00FF00",
+            "#8B4513"
+        ],
+        [
+            0,
+            "#8B4513",
+            "#8B4513",
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ]
+    ],
+    "sounds": {
+        "spawn": [
+            "sawtooth",
+            220,
+            300,
+            4,
+            60,
+            600,
+            12,
+            4,
+            4,
+            true,
+            false,
+            0,
+            0,
+            0
+        ],
+        "death": [
+            "sawtooth",
+            110,
+            800,
+            8,
+            80,
+            400,
+            16,
+            6,
+            6,
+            true,
+            false,
+            0,
+            0,
+            0
+        ],
+        "attack": [
+            "sawtooth",
+            330,
+            200,
+            2,
+            40,
+            800,
+            8,
+            2,
+            2,
+            true,
+            false,
+            0,
+            0,
+            0
+        ]
+    },
+    "attackRange": 45,
+    "attackSpeed": 1000,
+    "swordGraphics": {
+        "width": 35,
+        "height": 4,
+        "color": "#00ff00"
+    },
+    "skills": [
+        "skill-poisonTrail"
+    ],
+    "effects": {
+        "spawn": "fx-basicSpawn",
+        "death": "fx-basicDeath",
+        "attack": "fx-basicAttack",
+        "continuous": "fx-basicGlow"
+    }
+}

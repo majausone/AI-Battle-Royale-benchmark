@@ -1,0 +1,128 @@
+{
+    "id": "kewoNinja",
+    "name": "Ninja Kewo",
+    "description": "Ninja Kewo: Teleports around the battlefield.",
+    "cost": 192,
+    "life": 10,
+    "speed": 2,
+    "scale": 5,
+    "damage": 15,
+    "attackType": "melee",
+    "graphics": [
+        [
+            0,
+            0,
+            "#000000",
+            0,
+            0
+        ],
+        [
+            0,
+            "#000000",
+            "#000000",
+            "#000000",
+            0
+        ],
+        [
+            0,
+            "#000000",
+            "#FF0000",
+            "#000000",
+            0
+        ],
+        [
+            "#8B4513",
+            "#000000",
+            "#000000",
+            "#000000",
+            "#8B4513"
+        ],
+        [
+            0,
+            "#8B4513",
+            "#8B4513",
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ]
+    ],
+    "sounds": {
+        "spawn": [
+            "triangle",
+            1600,
+            150,
+            8,
+            50,
+            3000,
+            5,
+            3,
+            3,
+            false,
+            false,
+            0,
+            0,
+            0
+        ],
+        "death": [
+            "sawtooth",
+            800,
+            400,
+            12,
+            70,
+            2000,
+            8,
+            5,
+            5,
+            true,
+            false,
+            0,
+            0,
+            0
+        ],
+        "attack": [
+            "sine",
+            2000,
+            50,
+            4,
+            30,
+            4000,
+            3,
+            2,
+            2,
+            false,
+            false,
+            0,
+            0,
+            0
+        ]
+    },
+    "attackRange": 40,
+    "attackSpeed": 500,
+    "swordGraphics": {
+        "width": 35,
+        "height": 3,
+        "color": "#000000"
+    },
+    "skills": [
+        "skill-teleport"
+    ],
+    "effects": {
+        "spawn": "fx-basicSpawn",
+        "death": "fx-basicDeath",
+        "attack": "fx-basicAttack",
+        "continuous": "fx-basicGlow"
+    }
+}

@@ -1,0 +1,40 @@
+{
+    "id": "kewoTotem-6846",
+    "name": "Totem Kewo",
+    "description": "Totem Kewo: Crea un campo que aumenta el ataque de los aliados.",
+    "cost": 150,
+    "life": 12,
+    "speed": 1.2,
+    "scale": 5,
+    "damage": 3,
+    "attackType": "ranged",
+    "graphics": [
+        [0, 0, "#8B4513", 0, 0],
+        [0, "#8B4513", "#8B4513", "#8B4513", 0],
+        [0, "#8B4513", "#FFFF00", "#8B4513", 0],
+        ["#8B4513", "#8B4513", "#8B4513", "#8B4513", "#8B4513"],
+        [0, "#8B4513", "#8B4513", "#8B4513", 0],
+        [0, 0, "#8B4513", 0, 0],
+        [0, 0, "#8B4513", 0, 0]
+    ],
+    "sounds": {
+        "spawn": ["sine", 440, 400, 1, 30, 2000, 3, 0, 0, false, true, 60, 40, 20],
+        "death": ["sawtooth", 220, 800, 5, 60, 1000, 6, 2, 2, true, false, 0, 0, 0],
+        "attack": ["triangle", 330, 200, 0.5, 20, 1500, 2, 0, 0, false, false, 0, 0, 0]
+    },
+    "optimalRange": 300,
+    "projectileSpeed": 5,
+    "attackInterval": {
+        "min": 5000,
+        "max": 7000
+    },
+    "projectileColor": "#FFFF00",
+    "projectileTrailColor": "#FFFF00",
+    "skills": ["skill-totemProjectile-6846"],
+    "effects": {
+        "spawn": "fx-basicSpawn",
+        "death": "fx-basicDeath",
+        "attack": "fx-totemStart-6846",
+        "continuous": "fx-basicGlow"
+    }
+}

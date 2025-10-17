@@ -1,0 +1,128 @@
+{
+    "id": "kewoSlime",
+    "name": "Slime Kewo",
+    "description": "Slime Kewo: Splits into two when killed.",
+    "cost": 112,
+    "life": 10,
+    "speed": 1,
+    "scale": 5,
+    "damage": 8,
+    "attackType": "melee",
+    "graphics": [
+        [
+            0,
+            0,
+            "#00FF00",
+            0,
+            0
+        ],
+        [
+            0,
+            "#00FF00",
+            "#00FF00",
+            "#00FF00",
+            0
+        ],
+        [
+            0,
+            "#00FF00",
+            "#000000",
+            "#00FF00",
+            0
+        ],
+        [
+            "#00FF00",
+            "#00FF00",
+            "#00FF00",
+            "#00FF00",
+            "#00FF00"
+        ],
+        [
+            0,
+            "#00FF00",
+            "#00FF00",
+            "#00FF00",
+            0
+        ],
+        [
+            0,
+            "#00FF00",
+            0,
+            "#00FF00",
+            0
+        ],
+        [
+            0,
+            "#00FF00",
+            0,
+            "#00FF00",
+            0
+        ]
+    ],
+    "sounds": {
+        "spawn": [
+            "sine",
+            330,
+            200,
+            0.2,
+            40,
+            1500,
+            2,
+            2,
+            2,
+            false,
+            false,
+            0,
+            0,
+            0
+        ],
+        "death": [
+            "sawtooth",
+            110,
+            600,
+            15,
+            90,
+            500,
+            15,
+            8,
+            8,
+            true,
+            false,
+            0,
+            0,
+            0
+        ],
+        "attack": [
+            "triangle",
+            440,
+            100,
+            1,
+            20,
+            1000,
+            3,
+            0,
+            0,
+            false,
+            false,
+            0,
+            0,
+            0
+        ]
+    },
+    "attackRange": 45,
+    "attackSpeed": 1000,
+    "swordGraphics": {
+        "width": 35,
+        "height": 4,
+        "color": "#00ff00"
+    },
+    "skills": [
+        "skill-splitOnDeath"
+    ],
+    "effects": {
+        "spawn": "fx-basicSpawn",
+        "death": "fx-basicDeath",
+        "attack": "fx-basicAttack",
+        "continuous": "fx-basicGlow"
+    }
+}

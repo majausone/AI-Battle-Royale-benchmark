@@ -1,0 +1,295 @@
+body {
+    margin: 0;
+    padding: 0;
+    background-color: black;
+    color: white;
+    font-family: Arial, sans-serif;
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#game-container {
+    display: flex;
+    flex-grow: 1;
+}
+
+#sidebar {
+    width: 410px;
+    background-color: #222;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+#tabs-content {
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+#game-area {
+    flex-grow: 1;
+    position: relative;
+    overflow: hidden;
+    background: #111;
+}
+
+.battle-area {
+    position: absolute;
+    top: 70px;
+    left: 4px;
+    right: 4px;
+    bottom: 4px;
+    border: 4px solid #444;
+    border-radius: 4px;
+    pointer-events: none;
+}
+
+.spawn-point {
+    position: absolute;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: white;
+    font-size: 14px;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+}
+
+canvas {
+    position: absolute;
+    image-rendering: pixelated;
+}
+
+#stats {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 80%;
+    z-index: 10;
+    pointer-events: none;
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 5px;
+}
+
+.team-bars-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.ai-bars-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.team-healthbar {
+    width: 100%;
+    height: 25px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+}
+
+.ai-healthbar {
+    width: 100%;
+    height: 20px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+    position: relative;
+    overflow: hidden;
+}
+
+.team-healthbar-fill, .ai-healthbar-fill {
+    height: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+    transition: width 0.3s ease;
+}
+
+.team-healthbar-text, .ai-healthbar-text {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 10px;
+    box-sizing: border-box;
+    color: white;
+    font-size: 12px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    z-index: 1;
+}
+
+#game-over,
+#you-win {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 20px;
+    text-align: center;
+    display: none;
+    z-index: 1000;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    border-radius: 10px;
+    border: 1px solid #4CAF50;
+}
+
+#game-over h2,
+#you-win h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+    color: #4CAF50;
+}
+
+#you-win p {
+    font-size: 18px;
+    margin: 10px 0;
+}
+
+#you-win #total-score {
+    font-weight: bold;
+    font-size: 22px;
+    color: #4CAF50;
+}
+
+#restart-button,
+#restart-level-button {
+    font-size: 18px;
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+    margin-top: 20px;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+#restart-button:hover,
+#restart-level-button:hover {
+    background-color: #45a049;
+    transform: translateY(-2px);
+}
+
+.projectile {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    z-index: 5;
+}
+
+.trail {
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    z-index: 4;
+    opacity: 0.7;
+    transition: all 1s;
+}
+
+.sword {
+    position: absolute;
+    z-index: 6;
+}
+
+#pause-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    font-size: 48px;
+    z-index: 1000;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.health-bar {
+    position: absolute;
+    height: 5px;
+    background-color: rgba(255, 0, 0, 0.5);
+    z-index: 7;
+    transition: all 0.05s linear;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.health-bar-fill {
+    height: 100%;
+    background-color: rgba(0, 255, 0, 0.7);
+    transition: width 0.3s ease-in-out;
+    border-radius: 2px;
+}
+
+.tooltip-popup {
+    position: fixed;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 10px;
+    z-index: 1100;
+    max-width: 300px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+    display: none;
+}
+
+.tooltip-popup h3 {
+    margin: 0 0 8px 0;
+    color: #4CAF50;
+    font-size: 14px;
+}
+
+.tooltip-popup p {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    color: #ccc;
+}
+
+.tooltip-popup ul {
+    margin: 0;
+    padding: 0 0 0 20px;
+    list-style: none;
+}
+
+.tooltip-popup li {
+    font-size: 12px;
+    color: #bbb;
+    margin: 4px 0;
+    position: relative;
+}
+
+.tooltip-popup li::before {
+    content: "•";
+    color: #4CAF50;
+    position: absolute;
+    left: -12px;
+}
+
+.units-counter-toggle {
+    margin-top: 10px;
+}
+
+.units-counter-toggle label {
+    color: #ccc;
+    font-size: 14px;
+    margin-left: 10px;
+}

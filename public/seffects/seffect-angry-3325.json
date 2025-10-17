@@ -1,0 +1,12 @@
+{
+    "id": "seffect-angry-3325",
+    "effectType": "STAT",
+    "duration": 3000,
+    "stat": "damage",
+    "value": 7,
+    "sourceFx": {
+        "start": "fx-angry-3325Start",
+        "continuous": "fx-angry-3325Continuous"
+    },
+    "targetFx": {}
+}

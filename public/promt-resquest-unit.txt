@@ -1,0 +1,737 @@
+# Guide to Create a Unit in Kewo Battle
+
+## 1. Introduction
+
+You must create four files for a complete character in Kewo Battle:
+
+1. A unit file (foo-8472.json)
+2. A skill file (skill-foo-8472.js)
+3. A skill effect file (seffect-foo-8472.json)
+4. A visual effect file (fx-foo-8472.js) (create ONLY 1 FX of your choice and no more)
+
+IMPORTANT: You must generate a random 4-digit ID (example: "8472") and add it to ALL file names and internal IDs, separated by a hyphen.
+
+## 2. File Nomenclature
+
+The correct naming convention is:
+- Unit: kewoName-8472.json (WITH hyphen before the ID)
+- Skill: skill-name-8472.js (with hyphens)
+- Skill effect: seffect-name-8472.json (with hyphens)
+- Visual effect: fx-name-8472.js (with hyphens)
+
+## 3. Creating a Unit (kewoName-8472.json)
+
+{
+    "id": "kewoName-8472",
+    "name": "Kewo Name",
+    "description": "Brief description of the unit",
+    "cost": 100-200,
+    "life": 10-20,
+    "speed": 0.8-2.0,
+    "scale": 5,
+    "damage": 0-15,
+    "attackType": "melee" or "ranged",
+    
+    "graphics": [
+        // Pixel matrix that defines the unit's appearance
+        // Each value can be an HTML color (#RRGGBB) or 0 for transparent
+    ],
+    
+    "sounds": {
+        "spawn": [ /* sound parameters */ ],
+        "death": [ /* sound parameters */ ],
+        "attack": [ /* sound parameters */ ]
+    },
+    
+    // If melee:
+    "attackRange": 45-60,
+    "attackSpeed": 500-2000,
+    "swordGraphics": {
+        "width": 35-45,
+        "height": 3-5,
+        "color": "#color"
+    },
+    
+    // If ranged:
+    "optimalRange": 300-400,
+    "projectileSpeed": 3-6,
+    "attackInterval": {
+        "min": 3000,
+        "max": 5000
+    },
+    "projectileColor": "#color",
+    "projectileTrailColor": "#color",
+    
+    // Skills
+    "skills": [
+        "skill-name-8472"
+    ],
+    
+    // Associated FX
+    "effects": {
+        "spawn": "fx-basicSpawn",
+        "death": "fx-basicDeath",
+        "attack": "fx-basicAttack",
+        "continuous": "fx-basicGlow"
+    }
+}
+
+### 3.1. Graphics Format
+
+Graphics are defined as a 2D array of colors:
+
+"graphics": [
+    [0, 0, "#FF0000", 0, 0],
+    [0, "#FF0000", "#FF0000", "#FF0000", 0],
+    [0, "#FF0000", "#000000", "#FF0000", 0],
+    ["#8B4513", "#FF0000", "#FF0000", "#FF0000", "#8B4513"],
+    [0, "#8B4513", "#8B4513", "#8B4513", 0],
+    [0, "#8B4513", 0, "#8B4513", 0],
+    [0, "#8B4513", 0, "#8B4513", 0]
+]
+
+## 4. Creating a Skill (skill-name-8472.js)
+
+Skills define the special behavior of units. There are 7 types:
+- AURA: Affects units in an area
+- BUFF: Improves statistics
+- DEBUFF: Weakens enemy statistics
+- TRANSFORM: Changes appearance and statistics
+- SUMMON: Creates new units
+- PROJECTILE: Launches special projectiles
+- TELEPORT: Allows teleportation
+
+### 4.1. Basic Skill Structure
+
+import { BaseSkill } from '../baseSkill.js';
+
+class NameSkill extends BaseSkill {
+    constructor() {
+        super();
+        this.id = "skill-name-8472";
+        this.metadata = {
+            name: "Skill Name",
+            description: "Description of what it does",
+            skillType: "SKILL_TYPE", // AURA, BUFF, DEBUFF, TRANSFORM, SUMMON, PROJECTILE, TELEPORT
+            
+            // Associated seffect ID
+            seffects: "seffect-name-8472",
+            
+            // Activation system (at least one is necessary)
+            trigger: {
+                // Some examples - use appropriate ones according to the table:
+                onAttack: false,    // When attacking
+                onGetAttacked: true, // When being attacked
+                onSpawn: false,     // When spawning
+                interval: 5000,     // Interval in ms
+                chance: 0.5,        // Probability (0-1)
+                healthThreshold: 0.3 // % of life to activate
+            },
+            
+            // FX (use allowed ones according to type)
+            fx: {
+                start: "fx-name-8472",
+                continuous: null,
+                end: null,
+                impact: null
+            },
+            
+            // Sounds
+            sounds: {
+                start: ["type", frequency, duration, ...parameters], // See section 5
+                end: null
+            },
+            
+            // Type-specific properties
+            // (properties like projectileConfig, summonProperties, etc. would go here)
+        };
+    }
+
+    apply(unit) {
+        super.apply(unit);
+    }
+}
+
+const skill = new NameSkill();
+export default skill;
+
+### 4.2. Skill Types and Their Special Properties
+
+#### 4.2.1. AURA
+skillType: "AURA",
+seffects: "seffect-aura-8472", // REQUIRED
+
+#### 4.2.2. BUFF
+skillType: "BUFF",
+seffects: "seffect-buff-8472", // REQUIRED
+
+#### 4.2.3. DEBUFF
+skillType: "DEBUFF",
+seffects: "seffect-debuff-8472", // REQUIRED
+// IMPORTANT: A DEBUFF must have at least one of these two triggers:
+trigger: {
+    onAttack: true, // To apply the debuff to the enemy when the unit attacks
+    // Or:
+    onGetAttacked: true // To apply the debuff to the unit that attacks this unit
+}
+
+#### 4.2.4. TRANSFORM
+skillType: "TRANSFORM",
+seffects: "seffect-transform-8472", // REQUIRED
+graphics: [
+    // New graphics matrix for the transformation
+    // Same format as the unit graphics
+]
+
+#### 4.2.5. PROJECTILE
+skillType: "PROJECTILE",
+seffects: "seffect-projectile-8472", // OPTIONAL
+fx: {
+    start: "fx-projectileStart-8472", // OPTIONAL
+    impact: "fx-projectileImpact-8472" // OPTIONAL
+},
+target: ["enemies"], // REQUIRED: "allies", "enemies" or both
+projectileConfig: { // REQUIRED
+    speed: 5,
+    size: 10,
+    color: "#4682B4",
+    trailColor: "#87CEEB",
+    maxDistance: 350,
+    damage: 8,
+    count: 1, // Number of projectiles
+    spreadAngle: 0, // Spread angle if count > 1
+    areaEffect: true, // If it affects an area on impact
+    areaRadius: 80 // Radius of the affected area
+}
+
+#### 4.2.6. SUMMON
+skillType: "SUMMON",
+summonProperties: { // REQUIRED
+    health: 10,
+    speed: 1.5,
+    damage: 5,
+    scale: 5,
+    summonCount: 2, // Number of summons
+    summonDuration: 5000, // Duration (-1 for permanent)
+    attackType: 'melee',
+    graphics: [
+        // Graphics matrix for the summoned unit
+    ],
+    fx: {
+        start: "fx-spawnEffect-8472",
+        continuous: "fx-continuousEffect-8472"
+    }
+}
+
+#### 4.2.7. TELEPORT
+skillType: "TELEPORT",
+targetSelection: "RANDOM", // REQUIRED: "RANDOM", "NEAREST_ENEMY", etc.
+
+### 4.3 ## Complex Skill Example: Totem System
+
+Below is an example of a unit that uses multiple chained effects:
+
+The kewoTotem-6846 uses a system where:
+1. The unit launches a projectile (skill-totemProjectile-6846)
+2. The projectile on impact creates a field/aura (seffect-totemField-6846)
+3. The aura applies a buff to nearby allies (seffect-totemBuff-6846)
+
+// kewoTotem-6846.json (unit)
+{
+    "id": "kewoTotem-6846",
+    "name": "Totem Kewo",
+    "description": "Creates a field that increases ally attack.",
+    "cost": 150,
+    "life": 12,
+    "speed": 1.2,
+    "scale": 5,
+    "damage": 3,
+    "attackType": "ranged",
+    "graphics": [
+        [0, 0, "#8B4513", 0, 0],
+        [0, "#8B4513", "#8B4513", "#8B4513", 0],
+        [0, "#8B4513", "#FFFF00", "#8B4513", 0],
+        ["#8B4513", "#8B4513", "#8B4513", "#8B4513", "#8B4513"],
+        [0, "#8B4513", "#8B4513", "#8B4513", 0],
+        [0, 0, "#8B4513", 0, 0],
+        [0, 0, "#8B4513", 0, 0]
+    ],
+    "sounds": {
+        "spawn": ["sine", 440, 400, 1, 30, 2000, 3, 0, 0, false, true, 60, 40, 20],
+        "death": ["sawtooth", 220, 800, 5, 60, 1000, 6, 2, 2, true, false, 0, 0, 0],
+        "attack": ["triangle", 330, 200, 0.5, 20, 1500, 2, 0, 0, false, false, 0, 0, 0]
+    },
+    "optimalRange": 300,
+    "projectileSpeed": 5,
+    "attackInterval": {
+        "min": 5000,
+        "max": 7000
+    },
+    "projectileColor": "#FFFF00",
+    "projectileTrailColor": "#FFFF00",
+    "skills": ["skill-totemProjectile-6846"],
+    "effects": {
+        "spawn": "fx-basicSpawn",
+        "death": "fx-basicDeath",
+        "attack": "fx-totemStart-6846",
+        "continuous": "fx-basicGlow"
+    }
+}
+
+// skill-totemProjectile-6846.js (projectile skill)
+import { BaseSkill } from '../baseSkill.js';
+
+class TotemProjectileSkill extends BaseSkill {
+    constructor() {
+        super();
+        this.id = "skill-totemProjectile-6846";
+        this.metadata = {
+            name: "Totem Proyectil",
+            description: "Lanza un proyectil que crea un tótem que mejora a los aliados",
+            skillType: "PROJECTILE",
+            seffects: "seffect-totemField-6846",
+            
+            trigger: {
+                interval: 7000,
+                chance: 0.8
+            },
+            
+            sounds: {
+                start: ["sine", 440, 300, 5, 50, 2000, 3, 0, 0, false, true, 60, 40, 20]
+            },
+            
+            fx: {
+                start: "fx-totemStart-6846",
+                impact: "fx-totemImpact-6846"
+            },
+            
+            target: ["allies"],
+            
+            projectileConfig: {
+                speed: 5,
+                size: 10,
+                color: "#FFFF00",
+                trailColor: "#FFFF00",
+                maxDistance: 300,
+                damage: 0,
+                count: 1,
+                spreadAngle: 0,
+                areaEffect: true,
+                areaRadius: 100
+            }
+        };
+    }
+
+    apply(unit) {
+        super.apply(unit);
+    }
+}
+
+const skill = new TotemProjectileSkill();
+export default skill;
+
+// seffect-totemField-6846.json (aura effect)
+{
+    "id": "seffect-totemField-6846",
+    "effectType": "AURA",
+    "duration": 5000,
+    "noUnit": "true",
+    "auraRadius": 100,
+    "targetType": "allies",
+    "targetEffectId": "seffect-totemBuff-6846",
+    "pulseInterval": 1000,
+    "sourceFx": {
+        "continuous": "fx-totemFieldContinuous-6846"
+    }
+}
+
+// seffect-totemBuff-6846.json (buff effect)
+{
+    "id": "seffect-totemBuff-6846",
+    "effectType": "STAT",
+    "duration": 2000,
+    "stat": "damage",
+    "value": 5,
+    "sourceFx": {
+        "start": "fx-totemBuffStart-6846"
+    }
+}
+
+This example illustrates how skills can chain multiple effects 
+to create complex systems. The totem fires a projectile that creates an effect field,
+and this field in turn applies a damage buff to all allies within the radius.
+
+## 5. SOUND CONFIGURATION
+
+[
+    type,        // "sine|square|sawtooth|triangle"
+    frequency,   // 20-2000 Hz
+    duration,    // 50-2000 ms
+    modFreq,     // 0.1-20 Hz
+    modDepth,    // 0-100
+    filterFreq,  // 20-5000 Hz
+    filterRes,   // 0-20
+    chaosFreq,   // 0-10
+    chaosMod,    // 0-10
+    chaosFilter, // boolean
+    harmonizer,  // boolean
+    harmOctave,  // 0-100
+    harmFifth,   // 0-100
+    harmThird    // 0-100
+]
+
+Example sound configuration:
+"sounds": {
+    "spawn": [
+        "square",    // Wave type
+        440,         // Frequency (440Hz = A)
+        300,         // Duration in ms
+        5,           // Modulation frequency
+        50,          // Modulation depth
+        2000,        // Filter frequency
+        6,           // Filter resonance
+        2,           // Chaos frequency
+        2,           // Chaos modulation
+        true,        // Chaos filter enabled
+        false,       // Harmonizer disabled
+        0,           // Harmonizer octave
+        0,           // Harmonizer fifth
+        0            // Harmonizer third
+    ]
+}
+
+## 6. Creating a Skill Effect (seffect-name-8472.json)
+
+The seffects define what happens when a skill is activated. There are 4 types:
+- STAT: Modifies a statistic
+- MULTI_STAT: Modifies multiple statistics
+- AURA: Affects units in an area
+- PROJECTILE: Defines the effect of a projectile
+
+### 6.1. Basic Structure of a seffect
+
+{
+    "id": "seffect-name-8472",
+    "effectType": "EFFECT_TYPE", // STAT, MULTI_STAT, AURA, PROJECTILE
+    "duration": 3000, // Duration in ms (-1 for permanent)
+    
+    // The rest of the properties depend on the effect type
+    
+    // FX associated with the source
+    "sourceFx": {
+        "start": "fx-startEffect-8472",
+        "continuous": "fx-continuousEffect-8472",
+        "end": "fx-endEffect-8472"
+    },
+    
+    // FX associated with the target (not available in AURA)
+    "targetFx": {
+        "start": "fx-startEffect-8472",
+        "continuous": "fx-continuousEffect-8472",
+        "end": "fx-endEffect-8472"
+    }
+}
+
+### 6.2. Types of seffects and Their Specific Properties
+
+#### 6.2.1. STAT
+{
+    "id": "seffect-stat-8472",
+    "effectType": "STAT",
+    "duration": 3000,
+    "stat": "damage", // "damage" or "speed" (optional if using damageAmount, healAmount or shieldAmount)
+    "value": 5, // Value to add (can be negative)
+    "shieldAmount": 2, // Amount of damage blocked (optional)
+    "damageAmount": 1, // Amount of damage to inflict per pulse (optional)
+    "healAmount": 2, // Amount of healing to provide per pulse (optional)
+    "pulseInterval": 500, // Interval for damageAmount/healAmount effects (in ms)
+    
+    "sourceFx": {
+        "start": "fx-statStart-8472",
+        "continuous": "fx-statContinuous-8472"
+    }
+}
+
+#### 6.2.2. MULTI_STAT
+{
+    "id": "seffect-multistat-8472",
+    "effectType": "MULTI_STAT",
+    "duration": 4000,
+    "effects": [ // REQUIRED
+        {
+            "stat": "damage", // REQUIRED
+            "value": 2 // OPTIONAL
+        },
+        {
+            "stat": "speed", // REQUIRED
+            "value": 1.5 // OPTIONAL
+        }
+    ],
+    
+    "sourceFx": {
+        "start": "fx-multistatStart-8472",
+        "continuous": "fx-multistatContinuous-8472"
+    }
+}
+
+#### 6.2.3. AURA
+{
+    "id": "seffect-aura-8472",
+    "effectType": "AURA",
+    "duration": -1, // Permanent
+    "auraRadius": 150, // REQUIRED: Radius in pixels
+    "targetType": "enemies", // REQUIRED: "allies", "enemies", "self"
+    
+    // One of these options is necessary:
+    "targetEffectId": "seffect-othereffect-8472", // seffect to apply
+    "damageAmount": 2, // Damage to inflict per pulse
+    "healAmount": 5, // Healing to provide per pulse
+    
+    "pulseInterval": 1000, // Interval between pulses
+    "noUnit": "true", // If the effect is detached from a unit
+    "pulseFx": "fx-auraEffect-8472", // FX on each pulse
+    
+    "sourceFx": {
+        "continuous": "fx-auraContinuous-8472"
+    }
+}
+
+#### 6.2.4. PROJECTILE
+{
+    "id": "seffect-projectile-8472",
+    "effectType": "PROJECTILE",
+    "duration": 4000,
+    "stat": "speed", // OPTIONAL
+    "value": -0.3, // OPTIONAL
+    
+    "targetFx": {
+        "start": "fx-projectileImpact-8472"
+    }
+}
+
+## 7. Creating a Visual Effect (fx-name-8472.js)
+
+FX define how skills and effects are visualized. There are 7 main types:
+- GLOW: Glow around the unit
+- PARTICLES: Particles emanating from the unit
+- SHIELD: Visual shield
+- EXPLOSION: Explosion
+- PULSE: Energy pulse
+- TRAIL: Trail left by the unit
+- ATTACK: Attack animation
+
+### 7.1 Basic Structure of an FX
+
+import baseFx, { EFFECT_TYPES } from '../baseFx.js';
+
+const effectId = "fx-name-8472";
+
+export default async function nameEffect(target, data) {
+    // If it's a simple effect, you can use baseFx.createEffect:
+    return await baseFx.createEffect({
+        id: effectId,
+        target,
+        type: EFFECT_TYPES.EFFECT_TYPE, // GLOW, PARTICLES, SHIELD, EXPLOSION, PULSE, TRAIL, ATTACK
+        duration: 500, // Duration (for temporary effects)
+        properties: {
+            // Type-specific properties
+            color: 'rgba(255, 0, 0, 1)',
+            size: 1.2,
+            // ... other properties
+        }
+    });
+}
+
+nameEffect.id = effectId;
+
+### 7.2 FX Examples
+
+#### 7.2.1 GLOW
+return await baseFx.createEffect({
+    id: effectId,
+    target,
+    type: EFFECT_TYPES.GLOW,
+    properties: {
+        color: 'rgba(255, 0, 0, 1)', // Glow color
+        size: 1.3, // Relative size
+        pulseSpeed: 300, // Pulse speed
+        minAlpha: 0.2, // Minimum transparency
+        maxAlpha: 0.4 // Maximum transparency
+    }
+});
+
+#### 7.2.2 PARTICLES
+return await baseFx.createEffect({
+    id: effectId,
+    target,
+    type: EFFECT_TYPES.PARTICLES,
+    duration: 1000,
+    properties: {
+        particleCount: 15,
+        particleSize: 3,
+        particleSpeed: 2,
+        particleColor: '#32CD32',
+        particleLife: 1000,
+        particleGravity: 0.1,
+        particleShape: 'circle', // 'circle', 'square', 'line'
+        emitterShape: 'explosion', // emission shape
+        fadeOut: true
+    }
+});
+
+## 8. Reference Tables
+
+### 8.1 Skill Properties
+Legend:
+- R = Required
+- O = Optional
+- N = Not allowed
+
+Property,AURA,BUFF,DEBUFF,TRANSFORM,SUMMON,PROJECTILE,TELEPORT,Description
+onAttack,O,O,O*,O,O,O,O,Activates the skill when the unit attacks
+onGetAttacked,O,O,O*,O,O,O,O,Activates the skill when the unit receives damage
+onDeath,N,N,N,N,O,N,N,Activates the skill when the unit dies
+onSpawn,O,O,O,O,O,O,O,Activates the skill when the unit spawns
+interval,O,O,O,O,O,O,O,Time in ms between automatic activations
+duration,N,N,N,N,O,N,N,Duration in ms of the skill effect
+chance,O,O,O,O,O,O,O,Probability (0-1) that the skill activates
+healthThreshold,O,O,O,O,O,O,O,Life percentage to activate the skill
+fx.start,N,N,N,N,O,O,O,FX when activating the skill
+fx.end,N,N,N,N,N,N,O,FX when the skill ends
+fx.continuous,N,N,N,N,O,N,N,Continuous FX for the duration of the skill
+fx.impact,N,N,N,N,N,O,N,FX when the projectile impacts
+sounds.start,O,O,O,O,O,O,O,Sound when activating the skill
+sounds.end,O,O,O,O,N,N,N,Sound when the skill ends
+seffects,R,R,R,R,N,O,N,ID of the seffect to apply
+suicide,O,O,O,O,O,O,O,If the unit should die after using the skill
+graphics,N,N,N,R,N,N,N,Graphics for unit transformation
+targetSelection,N,N,N,N,N,N,R,Target selection method when teleporting
+projectileConfig,N,N,N,N,N,R,N,Projectile configuration
+target,N,N,N,N,N,R,N,Target types for the projectile
+summonProperties,N,N,N,N,R,N,N,Properties of the summoned units
+
+
+### 8.1.1 summonProperties Properties
+Property,Required/Optional,Description
+inheritType,O,Use the parent unit type
+inheritGraphics,O,Use the parent's graphics
+inheritHealth,O,Inherit health from parent
+inheritAttack,O,Inherit attack properties from parent
+inheritSpeed,O,Inherit speed from parent
+inheritDamage,O,Inherit damage from parent
+summonCount,R,Number of units to summon
+summonDuration,O,Duration of summoned units (-1 for permanent)
+scale,O,Size scale of summoned units
+health,O,Health of summoned units
+speed,O,Speed of summoned units
+damage,O,Damage of summoned units
+attackType,O,Attack type of summoned units
+attackRange,O,Melee attack range
+attackSpeed,O,Melee attack speed
+optimalRange,O,Optimal range for ranged attack
+graphics,O,Custom graphics for summons
+fx,O,FX for summoned units
+
+### 8.1.2 projectileConfig Properties
+Property,Required/Optional,Description
+speed,R,Projectile speed
+size,R,Projectile size
+color,R,Projectile color
+trailColor,O,Color of trail particles
+maxDistance,R,Maximum travel distance
+damage,R,Base projectile damage
+count,O,Number of projectiles launched
+spreadAngle,O,Spread angle for multiple projectiles
+areaEffect,O,If the projectile has area effect on impact
+areaRadius,O,Radius of area effect
+
+### 8.2 seffects Properties
+Property,STAT,MULTI_STAT,AURA,PROJECTILE,Description
+id,R,R,R,R,Unique seffect identifier
+effectType,R,R,R,R,Effect type (STAT, MULTI_STAT, AURA, PROJECTILE)
+duration,O,O,O,O,Effect duration in ms (-1 for permanent)
+stat,R,N,N,O,Affected statistic (damage, speed)
+value,O,N,N,O,Value to modify the statistic
+shieldAmount,O,N,N,N,Amount of damage the shield blocks
+effects,N,R,N,N,List of effects for MULTI_STAT
+effects[].stat,N,R,N,N,Statistic affected by sub-effect
+effects[].value,N,O,N,N,Value to modify in sub-effect
+effects[].shieldAmount,N,O,N,N,Shield amount in sub-effect
+auraRadius,N,N,R,N,Aura radius in pixels
+targetType,N,N,R,N,Aura targets: "allies", "enemies", "self"
+targetEffectId,N,N,O,N,ID of the seffect to apply to targets in the aura
+pulseInterval,N,N,O,N,Interval in ms for seffect aura or stat pulses
+damageAmount,N,N,O,N,Amount of damage the aura inflicts per pulse or that the unit receives in stat type
+healAmount,N,N,O,N,Amount of healing the aura provides per pulse or that the unit receives in stat type
+noUnit,N,N,O,N,If the effect is not linked to a unit (terrain field)
+pulseFx,N,N,O,N,FX displayed on each aura pulse
+sourceFx,O,O,O,O,FX for the source unit
+sourceFx.start,O,O,O,O,Initial FX on the source
+sourceFx.continuous,O,O,O,O,Continuous FX on the source
+sourceFx.end,O,O,O,O,Final FX on the source
+targetFx,O,O,N,O,FX for the target unit
+targetFx.start,O,O,N,O,Initial FX on the target
+targetFx.continuous,O,O,N,O,Continuous FX on the target
+targetFx.end,O,O,N,O,Final FX on the target
+
+## 9. Allowed Ranges and Balancing
+
+### 9.1 Ranges for Units
+When creating a unit, it's important to stay within the allowed ranges and properly balance the statistics to avoid units that are too powerful or too weak.
+
+Property,Minimum Value,Maximum Value,Notes
+cost,80,200,Cost in game resources
+life,8,20,Life points
+speed,0.8,3.0,Movement speed
+damage,0,15,Base damage per attack
+attackRange,40,60,For melee units
+attackSpeed,500,2000,Time between attacks in ms (lower = faster)
+optimalRange,300,400,For ranged units
+projectileSpeed,3,6,Projectile speed
+
+### 9.2 Ranges for Effects (seffects)
+For skills and effects, these are the recommended ranges to keep the game balanced:
+
+Property,Minimum Value,Maximum Value,Notes
+duration,1000,10000,Duration in ms (-1 for permanent)
+value (damage),-10,10,Damage modifier
+value (speed),-1.5,1.5,Speed modifier
+auraRadius,50,200,Aura radius in pixels
+damageAmount,1,5,Damage per pulse
+healAmount,1,5,Healing per pulse
+pulseInterval,500,3000,Interval between pulses
+shieldAmount,1,5,Amount of damage blocked
+
+### 9.3 Balancing Tips
+If a unit has a very powerful ability, compensate it with weaker base statistics.
+If it heals in an area, or damages in an area, take that into account so it's not too powerful.
+
+
+## 10. RESPONSE FORMAT
+
+You must create an ID that is 4 random numbers and add it to all file names and IDs of things.
+Your response must be plain text separating each file only by the comment of its file name, WITHOUT including paths.
+Remember to consult the tables in section 8, especially 8.1 and 8.2 to know what things you should and should not include.
+
+You must create THREE complete units (with their respective skills, seffects, and ONE FX per unit).
+
+For example, if your ID is "8472", your response should be:
+
+// kewoName-8472.json
+{
+    "id": "kewoName-8472",
+    ...
+}
+
+// skill-name-8472.js
+import { BaseSkill } from '../baseSkill.js';
+...
+
+// seffect-name-8472.json
+{
+    "id": "seffect-name-8472",
+    ...
+}
+
+// fx-name-8472.js
+import baseFx, { EFFECT_TYPES } from '../baseFx.js';

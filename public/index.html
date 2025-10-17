@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Battle</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="config-tab.css">
+    <link rel="stylesheet" href="round-tab.css">
+    <link rel="stylesheet" href="teams-tab.css">
+    <link rel="stylesheet" href="test-units-tab.css">
+    <link rel="stylesheet" href="tabs-manager.css">
+    <link rel="stylesheet" href="unit-editor.css">
+    <link rel="stylesheet" href="units-popup.css">
+    <link rel="stylesheet" href="skills-popup.css">
+    <link rel="stylesheet" href="sound-editor.css">
+    <link rel="stylesheet" href="matchProcessPopup.css">
+    <link rel="stylesheet" href="stats-tab.css">
+    <link rel="stylesheet" href="data-tab.css">
+    <link rel="stylesheet" href="errors-tab.css">
+    <link rel="stylesheet" href="tester-popup.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <div id="game-container">
+        <div id="sidebar">
+            <div id="tabs-content">
+                <div id="round-tab" class="tab-content"></div>
+                <div id="teams-tab" class="tab-content"></div>
+                <div id="test-units-tab" class="tab-content"></div>
+                <div id="config-tab" class="tab-content"></div>
+                <div id="stats-tab" class="tab-content"></div>
+                <div id="data-tab" class="tab-content"></div>
+                <div id="errors-tab" class="tab-content"></div>
+            </div>
+        </div>
+        <div id="game-area">
+            <div id="stats"></div>
+            <div id="game-over">
+                <h2>Game Over!</h2>
+                <button id="restart-button">Restart</button>
+            </div>
+            <div id="you-win">
+                <h2>Victory!</h2>
+                <p>Your score: <span id="total-score"></span></p>
+                <button id="restart-level-button">New Game</button>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="main.js"></script>
+</body>
+</html>

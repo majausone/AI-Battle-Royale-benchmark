@@ -1,0 +1,278 @@
+.skills-popup {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+}
+
+.skills-popup-overlay {
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.skills-popup-content {
+    width: 90%;
+    height: 90%;
+    background: #222;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.skills-popup-header {
+    padding: 15px;
+    background: #2a2a2a;
+    border-bottom: 1px solid #444;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.skills-popup-header h2 {
+    margin: 0;
+    color: #4CAF50;
+    font-size: 28px;
+}
+
+.close-button {
+    width: 32px;
+    height: 32px;
+    background: #444;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.skills-popup-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px;
+    background: #333;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: white;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.skills-column {
+    width: 250px;
+    border-right: 1px solid #444;
+    display: flex;
+    flex-direction: column;
+    background: #2a2a2a;
+    height: 100%;
+}
+
+.skills-search {
+    padding: 15px;
+    border-bottom: 1px solid #444;
+    flex-shrink: 0;
+}
+
+.skills-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.skill-item {
+    padding: 8px 12px;
+    margin-bottom: 4px;
+    background: #333;
+    border-radius: 4px;
+    color: #ccc;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.skill-item:hover {
+    background: #444;
+    color: white;
+}
+
+.skill-item.selected {
+    background: #4CAF50;
+    color: white;
+}
+
+.skill-code-column {
+    flex: 2;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    background: #1a1a1a;
+}
+
+.info-column {
+    flex: 1;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    background: #1a1a1a;
+    border-left: 1px solid #444;
+    overflow-y: auto;
+}
+
+.skill-code-column h3,
+.info-column h3 {
+    margin: 0 0 10px 0;
+    color: #4CAF50;
+    font-size: 18px;
+}
+
+.skill-code,
+.seffect-code {
+    flex: 1;
+    margin: 0;
+    padding: 15px;
+    background: #2a2a2a;
+    border-radius: 4px;
+    color: #ccc;
+    overflow: auto;
+    font-family: 'Consolas', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.info-content {
+    display: block;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.info-section {
+    background: #2a2a2a;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.info-section h4 {
+    color: #4CAF50;
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.info-section h4 i {
+    font-size: 14px;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+}
+
+.info-item {
+    background: #333;
+    padding: 8px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.info-item i {
+    color: #4CAF50;
+    width: 16px;
+    text-align: center;
+}
+
+.info-item span {
+    color: #ccc;
+}
+
+.effect-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.effect-item {
+    background: #333;
+    padding: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.effect-item:hover {
+    background: #444;
+}
+
+.effect-item h5 {
+    color: #4CAF50;
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.effect-item h5 i {
+    font-size: 12px;
+}
+
+.effect-details {
+    font-size: 12px;
+    color: #ccc;
+    margin-bottom: 10px;
+}
+
+.seffect-code {
+    display: none;
+    margin-top: 10px;
+    font-size: 12px;
+}
+
+.fx-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.fx-item {
+    background: #333;
+    padding: 8px 12px;
+    border-radius: 4px;
+    color: #4CAF50;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.fx-item:hover {
+    background: #444;
+}
+
+.fx-item i {
+    font-size: 10px;
+}
+
+.close-button:hover {
+    background: #555;
+}

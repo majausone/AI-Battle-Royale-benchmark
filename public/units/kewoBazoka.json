@@ -1,0 +1,140 @@
+{
+    "id": "kewoBazoka",
+    "name": "Bazooka Kewo",
+    "description": "Bazooka Kewo: Fires explosive projectiles.",
+    "cost": 195,
+    "life": 10,
+    "speed": 1,
+    "scale": 5,
+    "damage": 5,
+    "attackType": "ranged",
+    "graphics": [
+        [
+            0,
+            0,
+            "#32CD32",
+            0,
+            0,
+            "#808080",
+            "#808080"
+        ],
+        [
+            0,
+            "#32CD32",
+            "#32CD32",
+            "#32CD32",
+            0,
+            "#808080",
+            "#FF0000"
+        ],
+        [
+            0,
+            "#32CD32",
+            "#000000",
+            "#32CD32",
+            0,
+            "#808080",
+            "#808080"
+        ],
+        [
+            "#8B4513",
+            "#32CD32",
+            "#32CD32",
+            "#32CD32",
+            "#8B4513",
+            0,
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            "#8B4513",
+            "#8B4513",
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0,
+            0,
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0,
+            0,
+            0
+        ]
+    ],
+    "sounds": {
+        "spawn": [
+            "square",
+            100,
+            400,
+            4,
+            40,
+            300,
+            6,
+            3,
+            3,
+            true,
+            false,
+            0,
+            0,
+            0
+        ],
+        "death": [
+            "sawtooth",
+            60,
+            1500,
+            10,
+            90,
+            200,
+            18,
+            8,
+            8,
+            true,
+            false,
+            0,
+            0,
+            0
+        ],
+        "attack": [
+            "sine",
+            40,
+            800,
+            15,
+            100,
+            150,
+            20,
+            10,
+            10,
+            true,
+            true,
+            80,
+            60,
+            40
+        ]
+    },
+    "optimalRange": 400,
+    "projectileSpeed": 3,
+    "attackInterval": {
+        "min": 4000,
+        "max": 6000
+    },
+    "projectileColor": "#808080",
+    "projectileTrailColor": "#808080",
+    "effects": {
+        "spawn": "fx-basicSpawn.js",
+        "death": "fx-basicDeath.js",
+        "attack": "fx-basicAttack.js",
+        "continuous": "fx-basicGlow.js"
+    }
+}

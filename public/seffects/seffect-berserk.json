@@ -1,0 +1,12 @@
+{
+    "id": "seffect-berserk",
+    "effectType": "STAT",
+    "duration": 3000,
+    "stat": "damage",
+    "value": 5,
+    "sourceFx": {
+        "start": "fx-berserkStart",
+        "continuous": "fx-berserkContinuous"
+    },
+    "targetFx": {}
+}

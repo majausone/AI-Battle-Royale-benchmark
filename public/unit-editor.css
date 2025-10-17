@@ -1,0 +1,514 @@
+.unit-editor {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+}
+
+.editor-overlay {
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.editor-content {
+    width: 90%;
+    height: 90%;
+    background: #222;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.editor-header {
+    padding: 15px;
+    background: #2a2a2a;
+    border-bottom: 1px solid #444;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.editor-header h2 {
+    margin: 0;
+    color: #4CAF50;
+    font-size: 28px;
+}
+
+.header-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.editor-tabs {
+    display: flex;
+    padding: 0 15px;
+    background: #2a2a2a;
+    border-bottom: 1px solid #444;
+}
+
+.editor-tab {
+    padding: 12px 24px;
+    background: none;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    font-size: 14px;
+    border-bottom: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.editor-tab.active {
+    color: #4CAF50;
+    border-bottom-color: #4CAF50;
+}
+
+.editor-tab:hover {
+    color: #fff;
+}
+
+.delete-unit {
+    padding: 8px 16px;
+    background: #d32f2f;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.save-unit {
+    padding: 8px 16px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.close-editor {
+    width: 32px;
+    height: 32px;
+    background: #444;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.editor-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.editor-tab-content {
+    display: none;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.editor-tab-content.active {
+    display: block;
+}
+
+.editor-flex-row {
+    display: flex;
+    gap: 20px;
+    height: 100%;
+}
+
+.editor-section {
+    background: #2a2a2a;
+    border-radius: 6px;
+    padding: 15px;
+    height: fit-content;
+}
+
+.basic-section {
+    flex: 0 0 350px;
+}
+
+.tab-title {
+    color: #4CAF50;
+    margin: 0 0 15px 0;
+    padding-bottom: 10px;
+}
+
+.grid-section {
+    flex: 0 0 350px;
+}
+
+.tools-section {
+    flex: 0 0 250px;
+}
+
+.effects-section {
+    flex: 0 0 300px;
+}
+
+.editor-section h3 {
+    color: #4CAF50;
+    margin: 0 0 15px 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #444;
+}
+
+.editor-section h3.subsection {
+    margin-top: 20px;
+    font-size: 16px;
+}
+
+.input-group {
+    margin-bottom: 15px;
+}
+
+.input-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #ccc;
+    font-size: 14px;
+}
+
+.input-group input[type="text"],
+.input-group input[type="number"],
+.input-group select,
+.input-group textarea {
+    width: 100%;
+    padding: 8px;
+    background: #333;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: white;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+.input-group textarea {
+    height: 80px;
+    resize: vertical;
+    max-width: 100%;
+}
+
+.input-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+
+.range-inputs {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.range-inputs input {
+    width: calc(50% - 10px);
+}
+
+.graphics-editor {
+    display: flex;
+    gap: 20px;
+}
+
+.pixel-grid {
+    background: #333;
+    border-radius: 4px;
+    padding: 10px;
+}
+
+.grid-row {
+    display: flex;
+}
+
+.pixel {
+    border: 1px solid #444;
+    background: transparent;
+    cursor: pointer;
+}
+
+.pixel:hover {
+    border-color: #666;
+}
+
+.graphics-tools {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.color-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.common-colors {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 5px;
+}
+
+.common-colors button {
+    width: 30px;
+    height: 30px;
+    border: 2px solid #444;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.common-colors button:hover {
+    border-color: #666;
+}
+
+.clear-pixel,
+.clear-all,
+.resize-grid {
+    padding: 8px;
+    background: #444;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.clear-pixel:hover,
+.clear-all:hover,
+.resize-grid:hover {
+    background: #555;
+}
+
+.grid-size {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.size-inputs {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.size-inputs input {
+    width: 60px;
+}
+
+.skills-list {
+    background: #333;
+    border-radius: 4px;
+    padding: 10px;
+    overflow-y: auto;
+}
+
+.skill-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 5px;
+}
+
+.skill-item label {
+    color: #ccc;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.effects-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.effect-type {
+    margin-bottom: 10px;
+}
+
+.sounds-editor {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.sounds-editor .editor-section {
+    flex: 1;
+}
+
+.sound-config {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.frequency-group {
+    background: #222;
+    border-radius: 4px;
+    padding: 10px;
+    position: relative;
+    margin-bottom: 10px;
+}
+
+.remove-frequency {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 20px;
+    height: 20px;
+    background: #d32f2f;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.test-sound {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.add-frequency {
+    background: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+.color-input {
+    position: relative;
+    height: 60px;
+}
+
+.color-square {
+    width: 40px !important;
+    height: 40px !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: transparent !important;
+}
+
+.color-input input[type="color"] {
+    position: absolute;
+    left: 0;
+    top: 25px;
+    opacity: 1;
+    padding: 0;
+}
+
+.slider-group {
+    margin-bottom: 20px;
+}
+
+.slider-with-input {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.slider-with-input input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 5px;
+    border-radius: 5px;
+    background: #444;
+    outline: none;
+    opacity: 0.7;
+    transition: opacity .2s;
+}
+
+.slider-with-input input[type="range"]:hover {
+    opacity: 1;
+}
+
+.slider-with-input input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: #4CAF50;
+    cursor: pointer;
+}
+
+.slider-with-input input[type="range"]::-moz-range-thumb {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: #4CAF50;
+    cursor: pointer;
+    border: none;
+}
+
+.slider-with-input input[type="number"] {
+    width: 70px !important;
+    text-align: right;
+}
+
+.confirmation-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #333;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    width: 300px;
+    text-align: center;
+}
+
+.confirmation-dialog h3 {
+    color: #d32f2f;
+    margin: 0 0 15px 0;
+}
+
+.confirmation-dialog p {
+    color: #ccc;
+    margin: 0 0 20px 0;
+}
+
+.confirmation-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.confirm-delete {
+    padding: 8px 16px;
+    background: #d32f2f;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.cancel-delete {
+    padding: 8px 16px;
+    background: #666;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}

@@ -1,0 +1,14 @@
+{
+    "id": "seffect-stormField-2093",
+    "effectType": "AURA",
+    "duration": 4000,
+    "noUnit": "true",
+    "auraRadius": 80,
+    "targetType": "enemies",
+    "damageAmount": 2,
+    "pulseInterval": 500,
+    "sourceFx": {
+        "continuous": "fx-stormFieldContinuous-2093"
+    },
+    "pulseFx": "fx-stormDamage-2093"
+}

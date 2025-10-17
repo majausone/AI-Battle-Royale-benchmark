@@ -1,0 +1,128 @@
+{
+    "id": "kewoStorm-2093",
+    "name": "Storm Kewo",
+    "description": "Storm Kewo: Crea tormentas que dañan a los enemigos.",
+    "cost": 170,
+    "life": 10,
+    "speed": 0.9,
+    "scale": 5,
+    "damage": 0,
+    "attackType": "ranged",
+    "graphics": [
+        [
+            0,
+            0,
+            "#4682B4",
+            0,
+            0
+        ],
+        [
+            0,
+            "#4682B4",
+            "#4682B4",
+            "#4682B4",
+            0
+        ],
+        [
+            0,
+            "#4682B4",
+            "#FFFFFF",
+            "#4682B4",
+            0
+        ],
+        [
+            "#4682B4",
+            "#4682B4",
+            "#4682B4",
+            "#4682B4",
+            "#4682B4"
+        ],
+        [
+            0,
+            "#4682B4",
+            "#4682B4",
+            "#4682B4",
+            0
+        ],
+        [
+            0,
+            "#4682B4",
+            0,
+            "#4682B4",
+            0
+        ],
+        [
+            0,
+            "#4682B4",
+            0,
+            "#4682B4",
+            0
+        ]
+    ],
+    "sounds": {
+        "spawn": [
+            "sine",
+            660,
+            400,
+            1,
+            30,
+            2500,
+            4,
+            0,
+            0,
+            false,
+            true,
+            70,
+            50,
+            30
+        ],
+        "death": [
+            "sawtooth",
+            330,
+            800,
+            5,
+            60,
+            1200,
+            8,
+            3,
+            3,
+            true,
+            false,
+            0,
+            0,
+            0
+        ],
+        "attack": [
+            "triangle",
+            880,
+            200,
+            0.5,
+            20,
+            2000,
+            3,
+            0,
+            0,
+            false,
+            true,
+            40,
+            20,
+            10
+        ]
+    },
+    "optimalRange": 320,
+    "projectileSpeed": 4,
+    "attackInterval": {
+        "min": 40000,
+        "max": 40000
+    },
+    "projectileColor": "#87ceeb",
+    "projectileTrailColor": "#b0e0e6",
+    "skills": [
+        "skill-stormProjectile-2093"
+    ],
+    "effects": {
+        "spawn": "fx-basicSpawn.js",
+        "death": "fx-basicDeath.js",
+        "continuous": "fx-basicGlow.js"
+    }
+}

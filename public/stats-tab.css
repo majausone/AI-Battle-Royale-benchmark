@@ -1,0 +1,222 @@
+.stats-tab-container {
+    padding: 15px;
+}
+
+.stats-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    background: #2a2a2a;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.stats-header h3 {
+    color: #4CAF50;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.stats-filters {
+    background: #2a2a2a;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.filter-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.filter-group:last-child {
+    margin-bottom: 0;
+}
+
+.filter-group label {
+    color: #ffffff;
+    min-width: 120px;
+    display: flex;
+    align-items: center;
+}
+
+.filter-group select,
+.filter-group input {
+    flex: 1;
+    background: #333;
+    color: #fff;
+    border: 1px solid #444;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.filter-group button {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.filter-group button:hover {
+    background: #45a049;
+    transform: translateY(-2px);
+}
+
+.stats-dashboard {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    background: #2a2a2a;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.stat-card h4 {
+    color: #ccc;
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    text-transform: uppercase;
+}
+
+.stat-card .stat-value {
+    color: #4CAF50;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.charts-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.chart-card {
+    background: #2a2a2a;
+    padding: 15px;
+    border-radius: 8px;
+    height: 300px;
+}
+
+.chart-card h4 {
+    color: #4CAF50;
+    margin: 0 0 15px 0;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.chart-container {
+    height: calc(100% - 40px);
+    width: 100%;
+}
+
+.stats-table-container {
+    background: #2a2a2a;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.stats-table-container h4 {
+    color: #4CAF50;
+    margin: 0 0 15px 0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.stats-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.stats-table th {
+    text-align: left;
+    padding: 10px;
+    background: #1a1a1a;
+    color: #4CAF50;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 1px;
+}
+
+.stats-table td {
+    padding: 10px;
+    border-bottom: 1px solid #333;
+    color: #ccc;
+}
+
+.stats-table tr:hover td {
+    background: #333;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.pagination button {
+    background: #333;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.pagination button:hover:not(:disabled) {
+    background: #4CAF50;
+}
+
+.pagination button:disabled {
+    background: #222;
+    color: #555;
+    cursor: not-allowed;
+}
+
+.pagination .current-page {
+    display: flex;
+    align-items: center;
+    color: #ccc;
+}
+
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+}
+
+.status-indicator.completed {
+    background-color: #4CAF50;
+}
+
+.status-indicator.in-progress {
+    background-color: #FFC107;
+}
+
+.winner-team {
+    color: #4CAF50;
+    font-weight: bold;
+}
+
+.responsive-chart {
+    width: 100%;
+    height: 100%;
+}

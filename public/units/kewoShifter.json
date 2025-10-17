@@ -1,0 +1,128 @@
+{
+    "id": "kewoShifter",
+    "name": "Shifter Kewo",
+    "description": "Shifter Kewo: Transforms temporarily for increased power.",
+    "cost": 123,
+    "life": 10,
+    "speed": 1,
+    "scale": 5,
+    "damage": 10,
+    "attackType": "melee",
+    "graphics": [
+        [
+            0,
+            0,
+            "#9400D3",
+            0,
+            0
+        ],
+        [
+            0,
+            "#9400D3",
+            "#9400D3",
+            "#9400D3",
+            0
+        ],
+        [
+            0,
+            "#9400D3",
+            "#000000",
+            "#9400D3",
+            0
+        ],
+        [
+            "#8B4513",
+            "#9400D3",
+            "#9400D3",
+            "#9400D3",
+            "#8B4513"
+        ],
+        [
+            0,
+            "#8B4513",
+            "#8B4513",
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ]
+    ],
+    "sounds": {
+        "spawn": [
+            "sine",
+            440,
+            200,
+            0.5,
+            30,
+            2000,
+            4,
+            1,
+            1,
+            false,
+            true,
+            80,
+            60,
+            40
+        ],
+        "death": [
+            "sawtooth",
+            220,
+            600,
+            8,
+            70,
+            1000,
+            12,
+            5,
+            5,
+            true,
+            false,
+            0,
+            0,
+            0
+        ],
+        "attack": [
+            "square",
+            660,
+            150,
+            4,
+            40,
+            1500,
+            6,
+            2,
+            2,
+            false,
+            false,
+            0,
+            0,
+            0
+        ]
+    },
+    "attackRange": 45,
+    "attackSpeed": 800,
+    "swordGraphics": {
+        "width": 35,
+        "height": 4,
+        "color": "#9400d3"
+    },
+    "skills": [
+        "skill-transformationSkill"
+    ],
+    "effects": {
+        "spawn": "fx-basicSpawn",
+        "death": "fx-basicDeath",
+        "attack": "fx-basicAttack",
+        "continuous": "fx-basicGlow"
+    }
+}

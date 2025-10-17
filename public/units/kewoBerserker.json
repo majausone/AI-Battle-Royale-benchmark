@@ -1,0 +1,128 @@
+{
+    "id": "kewoBerserker",
+    "name": "Berserker Kewo",
+    "description": "Berserker Kewo: Deals more damage at low health.",
+    "cost": 100,
+    "life": 10,
+    "speed": 1.5,
+    "scale": 5,
+    "damage": 10,
+    "attackType": "melee",
+    "graphics": [
+        [
+            0,
+            0,
+            "#8B0000",
+            0,
+            0
+        ],
+        [
+            0,
+            "#8B0000",
+            "#8B0000",
+            "#8B0000",
+            0
+        ],
+        [
+            0,
+            "#8B0000",
+            "#000000",
+            "#8B0000",
+            0
+        ],
+        [
+            "#8B4513",
+            "#8B0000",
+            "#8B0000",
+            "#8B0000",
+            "#8B4513"
+        ],
+        [
+            0,
+            "#8B4513",
+            "#8B4513",
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ],
+        [
+            0,
+            "#8B4513",
+            0,
+            "#8B4513",
+            0
+        ]
+    ],
+    "sounds": {
+        "spawn": [
+            "sawtooth",
+            180,
+            300,
+            8,
+            80,
+            600,
+            12,
+            8,
+            8,
+            true,
+            false,
+            0,
+            0,
+            0
+        ],
+        "death": [
+            "square",
+            80,
+            1200,
+            15,
+            90,
+            400,
+            15,
+            10,
+            10,
+            true,
+            false,
+            0,
+            0,
+            0
+        ],
+        "attack": [
+            "square",
+            220,
+            150,
+            12,
+            70,
+            800,
+            10,
+            5,
+            5,
+            true,
+            false,
+            0,
+            0,
+            0
+        ]
+    },
+    "attackRange": 50,
+    "attackSpeed": 800,
+    "swordGraphics": {
+        "width": 45,
+        "height": 5,
+        "color": "#8b0000"
+    },
+    "skills": [
+        "skill-berserk"
+    ],
+    "effects": {
+        "spawn": "fx-basicSpawn",
+        "death": "fx-basicDeath",
+        "attack": "fx-basicAttack",
+        "continuous": "fx-basicGlow"
+    }
+}

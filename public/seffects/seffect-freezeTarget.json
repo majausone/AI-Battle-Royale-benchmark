@@ -1,0 +1,10 @@
+{
+    "id": "seffect-freezeTarget",
+    "effectType": "STAT",
+    "duration": 3000,
+    "stat": "speed",
+    "value": -0.5,
+    "targetFx": {
+        "start": "fx-freezeStart"
+    }
+}
