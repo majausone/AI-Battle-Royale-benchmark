@@ -21,11 +21,15 @@ export async function testConnection(service) {
     }
 }
 
-export async function sendPrompt(service, prompt) {
+export async function sendPrompt(service, prompt, meta = {}) {
     try {
         let requestBody = {
             service,
-            prompt
+            prompt,
+            aiId: meta.aiId ?? null,
+            matchId: meta.matchId ?? null,
+            promptType: meta.promptType ?? null,
+            teamId: meta.teamId ?? null
         };
         
         const response = await fetch('/api/ai/prompt', {

@@ -293,6 +293,32 @@
     font-size: 14px;
 }
 
+.collapsible-section {
+    background: #333;
+    padding: 15px;
+    border-radius: 8px;
+    grid-column: 1 / -1;
+    border: 1px solid #3c3c3c;
+}
+
+.collapsible-section summary {
+    cursor: pointer;
+    color: #4CAF50;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    user-select: none;
+    outline: none;
+}
+
+.collapsible-section summary::-webkit-details-marker {
+    color: #4CAF50;
+}
+
+.collapsible-section[open] {
+    border-color: #4CAF50;
+}
+
 .details-table {
     width: 100%;
     border-collapse: collapse;
@@ -362,4 +388,30 @@
 .errors-summary-table .warning-number {
     color: #ffc107;
     font-weight: bold;
+}
+
+.prompt-metrics-section {
+    background: #333;
+}
+
+.prompt-metrics-body {
+    margin-top: 10px;
+}
+
+.prompt-metrics-section .empty-table {
+    color: #bbb;
+}
+
+.files-body {
+    margin-top: 10px;
+}
+
+.prompt-match-average {
+    margin-bottom: 12px;
+    color: #ddd;
+    font-size: 14px;
+}
+
+.prompt-match-average strong {
+    color: #4CAF50;
 }

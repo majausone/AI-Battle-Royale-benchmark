@@ -24,12 +24,16 @@ export class TeamsTab {
                             <input type="number" id="num-rounds" value="3" min="1">
                         </div>
                         <div class="setting-group">
-                            <label>AI Error Penalty (Gold)</label>
-                            <input type="number" id="error-penalty" value="100" min="0" step="50">
+                            <label>Units Number</label>
+                            <input type="number" id="units-number" value="3" min="1">
                         </div>
                         <div class="setting-group">
-                            <label>Max AI Errors</label>
-                            <input type="number" id="max-errors" value="3" min="1">
+                            <label>Prompt</label>
+                            <select id="prompt-mode">
+                                <option value="normal" selected>Normal</option>
+                                <option value="crazy">Loco</option>
+                                <option value="boss">Boss</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -48,7 +52,7 @@ export class TeamsTab {
         const addTeamBtn = this.element.querySelector('#add-team-btn');
         addTeamBtn.addEventListener('click', () => this.handleAddTeam());
 
-        const inputs = this.element.querySelectorAll('.game-settings input');
+        const inputs = this.element.querySelectorAll('.game-settings input, .game-settings select');
         inputs.forEach(input => {
             input.addEventListener('change', () => this.updateGameSettings());
         });
@@ -449,6 +453,22 @@ export class TeamsTab {
             const response = await fetch('/api/config2');
             const config = await response.json();
 
+            if (!config.gameSettings) {
+                config.gameSettings = {};
+            }
+
+            if (config.gameSettings.unitsNumber === undefined) {
+                config.gameSettings.unitsNumber = 3;
+            }
+
+            const validPromptModes = ['normal', 'crazy', 'boss'];
+            const storedPromptMode = (config.gameSettings.promptMode || '').toLowerCase();
+            if (!validPromptModes.includes(storedPromptMode)) {
+                config.gameSettings.promptMode = 'normal';
+            } else {
+                config.gameSettings.promptMode = storedPromptMode;
+            }
+
             if (!config.teams) config.teams = [];
             config.teams.forEach(team => {
                 if (!team.ais) team.ais = [];
@@ -469,11 +489,14 @@ export class TeamsTab {
     async updateGameSettings() {
         const config = await this.loadConfig();
 
+        const unitsNumberValue = parseInt(this.element.querySelector('#units-number').value);
+        const promptMode = this.element.querySelector('#prompt-mode').value || config.gameSettings.promptMode || 'normal';
+
         config.gameSettings = {
             initialGold: parseInt(this.element.querySelector('#initial-gold').value),
             numRounds: parseInt(this.element.querySelector('#num-rounds').value),
-            errorPenalty: parseInt(this.element.querySelector('#error-penalty').value),
-            maxErrors: parseInt(this.element.querySelector('#max-errors').value)
+            unitsNumber: Number.isNaN(unitsNumberValue) ? config.gameSettings.unitsNumber : unitsNumberValue,
+            promptMode
         };
 
         await this.saveConfig(config);
@@ -501,8 +524,8 @@ export class TeamsTab {
         if (config.gameSettings) {
             this.element.querySelector('#initial-gold').value = config.gameSettings.initialGold;
             this.element.querySelector('#num-rounds').value = config.gameSettings.numRounds;
-            this.element.querySelector('#error-penalty').value = config.gameSettings.errorPenalty;
-            this.element.querySelector('#max-errors').value = config.gameSettings.maxErrors;
+            this.element.querySelector('#units-number').value = config.gameSettings.unitsNumber;
+            this.element.querySelector('#prompt-mode').value = config.gameSettings.promptMode || 'normal';
         }
 
         await this.loadAIServices();

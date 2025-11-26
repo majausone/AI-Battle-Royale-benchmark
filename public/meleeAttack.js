@@ -31,7 +31,11 @@ export function performMeleeAttack(attacker, target, unitData) {
         if (target.health > 0 && (!attacker.teamId || target.teamId !== attacker.teamId)) {
             const damage = getModifiedStat(attacker, 'damage');
             attackKewo(target, damage, attacker);
-            playAttackSound(unitData);
+            playAttackSound(unitData, {
+                aiId: attacker.aiId,
+                teamId: attacker.teamId,
+                unitType: attacker.type
+            });
             
             emit(attacker, EVENTS.ATTACK, { target, damage });
             

@@ -14,7 +14,7 @@ class SkillManager {
         };
     }
 
-    reportIssue(skill, message, isError = false) {
+    reportIssue(skill, message, isError = false, metadata = {}) {
         if (!skill || !skill.id) {
             console.warn(message);
             return;
@@ -22,7 +22,14 @@ class SkillManager {
 
         const filename = `${skill.id}.js`;
         console.warn(message);
-        reportValidationIssue(filename, message, isError);
+
+        const context = {
+            aiId: metadata.aiId || skill._ownerContext?.aiId || null,
+            teamId: metadata.teamId || skill._ownerContext?.teamId || null,
+            matchId: metadata.matchId || window.currentMatchId || null
+        };
+
+        reportValidationIssue(filename, message, isError, context);
     }
 
     validateActivationSystem(skill) {
@@ -72,14 +79,19 @@ class SkillManager {
         const { metadata } = skill;
 
         if (!metadata) {
-            this.reportIssue(skill, `No metadata found for skill: ${skill.id}`, true);
+            this.reportIssue(skill, `No metadata found for skill: ${skill.id}`, true, { aiId: unit?.aiId, teamId: unit?.teamId });
             return;
         }
 
         if (!metadata.skillType) {
-            this.reportIssue(skill, `Skill type not defined for: ${skill.id}, skill will not be applied`, true);
+            this.reportIssue(skill, `Skill type not defined for: ${skill.id}, skill will not be applied`, true, { aiId: unit?.aiId, teamId: unit?.teamId });
             return;
         }
+
+        skill._ownerContext = {
+            aiId: unit?.aiId || null,
+            teamId: unit?.teamId || null
+        };
 
         this.validateActivationSystem(skill);
 
@@ -87,7 +99,7 @@ class SkillManager {
         if (processor) {
             await processor(skill, unit);
         } else {
-            this.reportIssue(skill, `Unknown skill type: ${metadata.skillType} for skill: ${skill.id}, skill will not be applied`, true);
+            this.reportIssue(skill, `Unknown skill type: ${metadata.skillType} for skill: ${skill.id}, skill will not be applied`, true, { aiId: unit?.aiId, teamId: unit?.teamId });
         }
     }
 }

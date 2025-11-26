@@ -36,6 +36,12 @@ The correct naming convention is:
         // Pixel matrix that defines the unit's appearance
         // Each value can be an HTML color (#RRGGBB) or 0 for transparent
     ],
+
+    "animationGraphics" (REQUIRED): {
+        "move1": [ /* same matrix size as graphics */ ],
+        "move2": [ /* same matrix size as graphics */ ],
+        "attack": [ /* same matrix size as graphics */ ]
+    },
     
     "sounds": {
         "spawn": [ /* sound parameters */ ],
@@ -79,6 +85,7 @@ The correct naming convention is:
 ### 3.1. Graphics Format
 
 Graphics are defined as a 2D array of colors:
+Size MUST be between 3x3 and 12x12 (any rectangle in that range).
 
 "graphics": [
     [0, 0, "#FF0000", 0, 0],
@@ -89,6 +96,10 @@ Graphics are defined as a 2D array of colors:
     [0, "#8B4513", 0, "#8B4513", 0],
     [0, "#8B4513", 0, "#8B4513", 0]
 ]
+
+You must include "animationGraphics" with the same dimensions as "graphics":
+- Frame order: graphics (idle/frame 1) -> animationGraphics.move1 (frame 2) -> animationGraphics.move2 (frame 3) loop during movement/idle.
+- When the unit attacks, animationGraphics.attack (frame 4) is shown for 1 second.
 
 ## 4. Creating a Skill (skill-name-8472.js)
 
@@ -713,7 +724,7 @@ You must create an ID that is 4 random numbers and add it to all file names and 
 Your response must be plain text separating each file only by the comment of its file name, WITHOUT including paths.
 Remember to consult the tables in section 8, especially 8.1 and 8.2 to know what things you should and should not include.
 
-You must create THREE complete units (with their respective skills, seffects, and ONE FX per unit).
+You must create {{UNITS_NUMBER}} complete units (with their respective skills, seffects, and ONE FX per unit).
 
 For example, if your ID is "8472", your response should be:
 

@@ -181,6 +181,31 @@ async function makeAIRequest(service, prompt, isTest = false) {
 
             return { success: true };
         }
+        else if (service.type === 'moonshot') {
+            const endpoint = service.endpoint || 'https://api.moonshot.ai/v1/chat/completions';
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${service.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: service.model,
+                    messages: [{
+                        role: "user",
+                        content: "Test connection"
+                    }],
+                    temperature: 0.1,
+                    max_tokens: 256
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`API error: ${await response.text()}`);
+            }
+
+            return { success: true };
+        }
         else {
             const endpoint = (service.type === 'custom' || service.type === 'chatgpt') && service.endpoint ? service.endpoint : "https://api.openai.com/v1/chat/completions";
             

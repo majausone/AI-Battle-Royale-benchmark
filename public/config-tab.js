@@ -59,6 +59,31 @@ export class ConfigTab {
                             <button id="increase-speed" class="speed-button">+</button>
                         </div>
                     </div>
+                    <div class="map-theme-control">
+                        <label for="map-theme-select">Map Theme</label>
+                        <select id="map-theme-select">
+                            <option value="none">None</option>
+                            <option value="forest">Forest</option>
+                            <option value="lava">Lava</option>
+                            <option value="snow">Snow</option>
+                        </select>
+                    </div>
+                    <div class="rain-control">
+                        <label for="rain-mode-select">Rain</label>
+                        <select id="rain-mode-select">
+                            <option value="never">Never</option>
+                            <option value="always">Always</option>
+                            <option value="sometimes">Sometimes (20%)</option>
+                        </select>
+                    </div>
+                    <div class="snow-control">
+                        <label for="snow-mode-select">Snow</label>
+                        <select id="snow-mode-select">
+                            <option value="never">Never</option>
+                            <option value="always">Always</option>
+                            <option value="sometimes">Sometimes (20%)</option>
+                        </select>
+                    </div>
                 </div>
                 <h3>AI Services Configuration</h3>
                 <div class="services-list" id="services-list"></div>
@@ -153,6 +178,24 @@ export class ConfigTab {
             gameSpeedValue.textContent = `${speed.toFixed(1)}x`;
             this.saveSingleDisplaySetting('gameSpeed', speed);
         });
+
+        const mapThemeSelect = this.element.querySelector('#map-theme-select');
+        mapThemeSelect.addEventListener('change', (e) => {
+            this.saveSingleDisplaySetting('mapTheme', e.target.value);
+            window.dispatchEvent(new CustomEvent('mapThemeChanged', { detail: e.target.value }));
+        });
+
+        const rainModeSelect = this.element.querySelector('#rain-mode-select');
+        rainModeSelect.addEventListener('change', (e) => {
+            this.saveSingleDisplaySetting('rainMode', e.target.value);
+            window.dispatchEvent(new CustomEvent('rainModeChanged', { detail: e.target.value }));
+        });
+
+        const snowModeSelect = this.element.querySelector('#snow-mode-select');
+        snowModeSelect.addEventListener('change', (e) => {
+            this.saveSingleDisplaySetting('snowMode', e.target.value);
+            window.dispatchEvent(new CustomEvent('snowModeChanged', { detail: e.target.value }));
+        });
     }
 
     async loadConfig() {
@@ -176,6 +219,21 @@ export class ConfigTab {
                     this.element.querySelector('#game-speed-slider').value = gameSpeed * 100;
                     this.element.querySelector('#game-speed-value').textContent = `${gameSpeed.toFixed(1)}x`;
                     setGameSpeed(gameSpeed);
+                }
+
+                if (config.display.mapTheme) {
+                    this.element.querySelector('#map-theme-select').value = config.display.mapTheme;
+                    window.dispatchEvent(new CustomEvent('mapThemeChanged', { detail: config.display.mapTheme }));
+                }
+
+                if (config.display.rainMode) {
+                    this.element.querySelector('#rain-mode-select').value = config.display.rainMode;
+                    window.dispatchEvent(new CustomEvent('rainModeChanged', { detail: config.display.rainMode }));
+                }
+
+                if (config.display.snowMode) {
+                    this.element.querySelector('#snow-mode-select').value = config.display.snowMode;
+                    window.dispatchEvent(new CustomEvent('snowModeChanged', { detail: config.display.snowMode }));
                 }
 
                 window.dispatchEvent(new CustomEvent('fpsToggle', { detail: config.display.showFpsCounter }));
@@ -211,7 +269,7 @@ export class ConfigTab {
 
     removeService(index) {
         const serviceToRemove = this.services[index];
-        
+
         if (serviceToRemove && serviceToRemove.service_id) {
             this.deleteService(serviceToRemove.service_id);
             this.services.splice(index, 1);
@@ -237,7 +295,7 @@ export class ConfigTab {
         try {
             if (field === 'type') {
                 this.services[index][field] = value;
-                
+
                 if (value === 'claude') {
                     this.services[index].endpoint = 'https://api.anthropic.com/v1/messages';
                     this.services[index].model = 'claude-3-5-sonnet-20241022';
@@ -258,20 +316,23 @@ export class ConfigTab {
                 } else if (value === 'grok') {
                     this.services[index].endpoint = 'https://api.x.ai/v1/chat/completions';
                     this.services[index].model = 'grok-4-fast';
+                } else if (value === 'moonshot') {
+                    this.services[index].endpoint = 'https://api.moonshot.ai/v1/chat/completions';
+                    this.services[index].model = 'kimi-k2';
                 }
             } else {
                 this.services[index][field] = value;
             }
-            
+
             const serviceId = this.services[index].service_id;
             if (serviceId) {
                 const response = await fetch(`/api/config2/ai-service/check-dependencies/${serviceId}`);
                 if (!response.ok) {
                     throw new Error('Error al verificar dependencias del servicio');
                 }
-                
+
                 const data = await response.json();
-                
+
                 if (data.hasDependencies) {
                     await popupManager.showWarning(
                         "No se puede modificar este servicio porque ya tiene partidas asociadas. Las modificaciones podrían afectar a los datos históricos.",
@@ -281,14 +342,14 @@ export class ConfigTab {
                     return;
                 }
             }
-            
+
             const result = await this.saveService(this.services[index]);
             if (result && result.success === false && result.error) {
                 await popupManager.showWarning(result.error);
                 await this.loadConfig();
                 return;
             }
-            
+
             this.renderServices();
         } catch (error) {
             console.error('Error updating service:', error);
@@ -306,7 +367,7 @@ export class ConfigTab {
                 },
                 body: JSON.stringify(service)
             });
-            
+
             if (response.ok) {
                 const result = await response.json();
                 if (result.service_id && !service.service_id) {
@@ -330,7 +391,7 @@ export class ConfigTab {
         try {
             const data = {};
             data[key] = value;
-            
+
             await fetch('/api/config2/display', {
                 method: 'POST',
                 headers: {
@@ -352,7 +413,7 @@ export class ConfigTab {
                 },
                 body: JSON.stringify(this.services)
             });
-            
+
             if (response.ok) {
                 const result = await response.json();
                 if (result.success && result.services) {
@@ -373,7 +434,7 @@ export class ConfigTab {
             const serviceElement = document.createElement('div');
             serviceElement.className = 'service-config';
             serviceElement.dataset.serviceType = service.type;
-            
+
             if (!service.isActive) {
                 serviceElement.classList.add('inactive');
             }
@@ -397,6 +458,7 @@ export class ConfigTab {
                             <option value="deepseek" ${service.type === 'deepseek' ? 'selected' : ''}>DeepSeek</option>
                             <option value="gemini" ${service.type === 'gemini' ? 'selected' : ''}>Gemini</option>
                             <option value="grok" ${service.type === 'grok' ? 'selected' : ''}>Grok</option>
+                            <option value="moonshot" ${service.type === 'moonshot' ? 'selected' : ''}>Kimi (Moonshot)</option>
                         </select>
                     </div>
                     <div class="input-group">

@@ -4,7 +4,9 @@ import { join } from 'path';
 
 export function setupMiddleware(app, dirname) {
     app.use(cors());
-    app.use(express.json());
+    // Allow large prompts/payloads for LLM interactions (adapt prices, etc.)
+    app.use(express.json({ limit: '50mb' }));
+    app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
     app.use((req, res, next) => {
         if (req.url.endsWith('.js')) {

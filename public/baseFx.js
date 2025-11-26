@@ -1,5 +1,6 @@
 let renderModule;
 let gameStateModule;
+let socketManager;
 
 async function loadDependencies() {
     if (!renderModule) {
@@ -8,6 +9,56 @@ async function loadDependencies() {
     if (!gameStateModule) {
         gameStateModule = await import('./gameState.js');
     }
+    if (!socketManager) {
+        socketManager = await import('./socketManager.js');
+    }
+}
+
+function reportFxIssue(effectId, message, isError = false, meta = {}) {
+    if (!socketManager || !socketManager.reportValidationIssue) return;
+    const matchId = typeof window !== 'undefined' ? (window.currentMatchId || null) : null;
+    const filename = effectId ? `${effectId}.js` : 'fx-unknown.js';
+    const owner = resolveOwner(meta.target || null);
+    const payloadMeta = {
+        matchId,
+        aiId: owner.aiId ?? meta.aiId ?? null,
+        teamId: owner.teamId ?? meta.teamId ?? null,
+        aiName: owner.aiName ?? null,
+        teamName: owner.teamName ?? null
+    };
+    try {
+        socketManager.reportValidationIssue(filename, message, isError, payloadMeta);
+    } catch (e) {
+        console.warn('[FX Validation] Unable to report issue:', e?.message || e);
+    }
+}
+
+function resolveOwner(target) {
+    const meta = { aiId: null, teamId: null, aiName: null, teamName: null };
+    const teamId = target?.teamId || null;
+    const aiId = target?.aiId || null;
+
+    if (teamId && gameStateModule?.teamStats?.has(teamId)) {
+        const team = gameStateModule.teamStats.get(teamId);
+        meta.teamId = teamId;
+        meta.teamName = team?.name || null;
+        if (aiId && team?.ais?.has(aiId)) {
+            const ai = team.ais.get(aiId);
+            meta.aiId = aiId;
+            meta.aiName = ai?.service || null;
+        }
+    } else {
+        meta.teamId = teamId || null;
+        meta.aiId = aiId || null;
+    }
+
+    return meta;
+}
+
+function clampAlpha(value, fallback = 0.2) {
+    const alpha = Number(value);
+    if (!Number.isFinite(alpha)) return fallback;
+    return Math.min(1, Math.max(0, alpha));
 }
 
 export async function createEffect(params) {
@@ -66,6 +117,9 @@ function createGlowEffect(effectId, target, startTime, duration, properties) {
         minAlpha = 0.1,
         maxAlpha = 0.2
     } = properties || {};
+
+    const safeMinAlpha = clampAlpha(minAlpha, 0.1);
+    const safeMaxAlpha = clampAlpha(maxAlpha, 0.2);
     
     return {
         render(ctx) {
@@ -86,7 +140,11 @@ function createGlowEffect(effectId, target, startTime, duration, properties) {
             }
             
             const pulseProgress = (Math.sin(elapsed / pulseSpeed) + 1) / 2;
-            const alpha = minAlpha + pulseProgress * (maxAlpha - minAlpha);
+            let alpha = safeMinAlpha + pulseProgress * (safeMaxAlpha - safeMinAlpha);
+            if (!Number.isFinite(alpha)) {
+                alpha = clampAlpha(safeMinAlpha, 0.15);
+                reportFxIssue(effectId, `Invalid alpha in FX ${effectId}, using fallback.`, true, { target });
+            }
             
             const glowSize = Math.max(target.width, target.height) * size;
             const centerX = target.x + target.width / 2;
@@ -236,6 +294,8 @@ function createShieldEffect(effectId, target, startTime, duration, properties) {
     } = properties || {};
     
     const baseColor = parseColor(color);
+    const safeMinAlpha = clampAlpha(minAlpha, 0.1);
+    const safeMaxAlpha = clampAlpha(maxAlpha, 0.3);
     
     return {
         render(ctx) {
@@ -253,7 +313,11 @@ function createShieldEffect(effectId, target, startTime, duration, properties) {
             }
             
             const pulseProgress = (Math.sin(elapsed / pulseSpeed) + 1) / 2;
-            const alpha = minAlpha + pulseProgress * (maxAlpha - minAlpha);
+            let alpha = safeMinAlpha + pulseProgress * (safeMaxAlpha - safeMinAlpha);
+            if (!Number.isFinite(alpha)) {
+                alpha = clampAlpha(safeMinAlpha, 0.2);
+                reportFxIssue(effectId, `Invalid shield alpha in FX ${effectId}, using fallback.`, true, { target });
+            }
             
             const shieldRadius = Math.max(target.width, target.height) * size;
             const centerX = target.x + target.width / 2;

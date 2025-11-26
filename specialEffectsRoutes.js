@@ -66,7 +66,7 @@ export function setupRouteSeffects(app) {
             return JSON.parse(content);
         } catch (error) {
             if (error.code === 'ENOENT') {
-                throw new Error(`Special effect with ID ${req.params.id} not found`);
+                return { error: `Special effect with ID ${req.params.id} not found` };
             }
             throw error;
         }

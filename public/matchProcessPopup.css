@@ -23,6 +23,59 @@
     border: 1px solid #333;
 }
 
+.match-process-controls {
+    padding: 15px 20px;
+    border-bottom: 1px solid #444;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.match-process-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.match-process-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.match-process-checkbox label {
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.match-process-start-btn {
+    padding: 8px 24px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-left: auto;
+}
+
+.match-process-start-btn:hover {
+    background: #45a049;
+    transform: translateY(-2px);
+}
+
+.match-process-start-btn:disabled {
+    background: #555;
+    color: #888;
+    cursor: not-allowed;
+    transform: none;
+}
+
 .match-process-header {
     padding: 20px;
     border-bottom: 1px solid #444;
@@ -112,6 +165,51 @@
 .process-section.error {
     border-color: #f44336;
     background: rgba(244, 67, 54, 0.05);
+}
+
+.ai-stats-table {
+    display: grid;
+    grid-template-columns: 1fr;
+    border: 1px solid #333;
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 10px 12px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.ai-stats-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+}
+
+.ai-stats-row.header {
+    background: rgba(255, 255, 255, 0.05);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ai-stats-cell {
+    padding: 8px 10px;
+    border-bottom: 1px solid #2a2a2a;
+    color: #ddd;
+    font-size: 13px;
+}
+
+.ai-stats-row:last-child .ai-stats-cell {
+    border-bottom: none;
+}
+
+.ai-success .ai-stats-cell {
+    color: #8bc34a;
+}
+
+.ai-error .ai-stats-cell {
+    color: #f44336;
+}
+
+.ai-warning .ai-stats-cell {
+    color: #ffc107;
 }
 
 .process-header {

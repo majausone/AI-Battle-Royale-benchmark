@@ -17,17 +17,23 @@ async function loadInitialConfig() {
     try {
         const response = await fetch('/api/config2');
         const config = await response.json();
-        
+
         if (config.display) {
             const showFps = config.display.showFpsCounter;
             const showUnitsCounter = config.display.showUnitsCounter;
             const volume = config.display.volume;
             const gameSpeed = config.display.gameSpeed;
+            const mapTheme = config.display.mapTheme || 'none';
+            const rainMode = config.display.rainMode || 'never';
+            const snowMode = config.display.snowMode || 'never';
 
             window.dispatchEvent(new CustomEvent('fpsToggle', { detail: showFps }));
             window.dispatchEvent(new CustomEvent('unitsCounterToggle', { detail: showUnitsCounter }));
+            window.dispatchEvent(new CustomEvent('mapThemeChanged', { detail: mapTheme }));
+            window.dispatchEvent(new CustomEvent('rainModeChanged', { detail: rainMode }));
+            window.dispatchEvent(new CustomEvent('snowModeChanged', { detail: snowMode }));
             setVolume(volume / 100, false);
-            
+
             if (gameSpeed !== undefined) {
                 gameState.setGameSpeed(gameSpeed, false);
             }
@@ -56,10 +62,10 @@ window.addEventListener('DOMContentLoaded', async () => {
         await initializeUnits();
         await initializeGame();
         await setupTabs();
-        
+
         updateLayout();
         initUI();
-        
+
         window.gameState = gameState;
     } catch (error) {
         console.error('Error initializing game:', error);
@@ -74,7 +80,7 @@ async function setupTabs() {
     tabManager.registerTab('stats-tab', new StatsTab(), true);
     tabManager.registerTab('data-tab', new DataTab(), true);
     tabManager.registerTab('errors-tab', new ErrorsTab(), true);
-    
+
     await tabManager.init();
 }
 
@@ -83,10 +89,10 @@ function updateLayout() {
     const sidebar = document.getElementById('sidebar');
     const teamsTab = document.getElementById('teams-tab');
     const configTab = document.getElementById('config-tab');
-    
+
     const totalWidth = window.innerWidth;
     const sidebarWidth = sidebar.offsetWidth;
-    
+
     gameArea.style.width = `${totalWidth - sidebarWidth}px`;
     gameArea.style.height = `${window.innerHeight}px`;
     sidebar.style.height = `${window.innerHeight}px`;

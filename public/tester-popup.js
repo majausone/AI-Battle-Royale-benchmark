@@ -139,7 +139,9 @@ export class TesterPopup {
         this.updateProgress(20);
         this.log('info', '4⃣ Añadiendo participantes a la partida...');
         try {
-            for (const team of config.teams) {
+            const availableTeams = config.teams.filter(team => team.isAvailable === true);
+            this.log('info', `   Equipos disponibles: ${availableTeams.length} de ${config.teams.length}`);
+            for (const team of availableTeams) {
                 for (const ai of team.ais) {
                     this.log('info', `   Añadiendo IA ${ai.id} del equipo ${team.name}...`);
                     

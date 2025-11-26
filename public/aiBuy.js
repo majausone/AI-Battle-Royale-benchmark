@@ -1,6 +1,7 @@
 import { loadedUnits } from './unitLoader.js';
 import { sendPrompt } from './aiSender.js';
 import { matchProcessPopup } from './matchProcessPopup.js';
+import { reportValidationIssue } from './socketManager.js';
 
 export let simpleBuyMode = false;
 
@@ -266,6 +267,8 @@ async function processLLMBuying() {
     try {
         sendLog('Starting unit purchasing process...');
         sendProgress('Getting configuration...');
+
+        const matchId = window.currentMatchId || null;
         
         const configResponse = await fetch('/api/config2');
         const config = await configResponse.json();
@@ -274,6 +277,26 @@ async function processLLMBuying() {
             sendLog('Error: Could not get system configuration.', 'error');
             return;
         }
+        
+        const flagCriticalBuyError = (ai, team, serviceName, reason) => {
+            if (!matchId || !ai?.id || !team?.id) {
+                return;
+            }
+
+            reportValidationIssue(
+                `buy-units-${team.id}-${ai.id}.json`,
+                reason,
+                true,
+                {
+                    aiId: ai.id,
+                    teamId: team.id,
+                    aiName: serviceName,
+                    teamName: team.name
+                }
+            ).catch(error => {
+                console.error('Error reporting buy units failure:', error);
+            });
+        };
         
         sendLog('Configuration obtained.');
         
@@ -312,40 +335,81 @@ async function processLLMBuying() {
         
         sendLog(`Processing ${availableTeams.length} available teams.`);
         
-        for (const team of availableTeams) {
+        const tasks = [];
+        
+        availableTeams.forEach(team => {
             sendLog(`\nProcessing team: ${team.name}`);
-            
-            for (const ai of team.ais) {
-                const serviceId = ai.service_id;
-                const service = activeServices.find(s => s.service_id === serviceId);
-                
-                if (!service) {
-                    sendLog(`Skipping AI ${ai.id} - Service not active or not in match`, 'warning');
-                    continue;
-                }
-                
-                const serviceName = service.name || service.type;
-                sendLog(`\nProcessing AI using ${serviceName}`);
-                
-                if (!ai.availableUnits || ai.availableUnits.length === 0) {
-                    sendLog(`No available units for this AI, skipping.`, 'warning');
-                    continue;
-                }
-                
-                sendProgress(`Collecting data for ${team.name}...`);
-                
-                const unitInfoPromises = ai.availableUnits.map(unitId => collectUnitInfo(unitId));
-                const unitsInfo = await Promise.all(unitInfoPromises);
-                const validUnitsInfo = unitsInfo.filter(info => info !== null);
-                
-                sendLog(`Data collected for ${validUnitsInfo.length} units.`);
-                
-                if (validUnitsInfo.length === 0) {
-                    sendLog(`No valid units available, skipping.`, 'warning');
-                    continue;
-                }
-                
-                const promptData = validUnitsInfo.map(info => {
+            team.ais.forEach(ai => {
+                tasks.push((async () => {
+                    const serviceId = ai.service_id;
+                    const service = activeServices.find(s => s.service_id === serviceId);
+                    
+                    if (!service) {
+                        sendLog(`Skipping AI ${ai.id} - Service not active or not in match`, 'warning');
+                        window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                            detail: {
+                                type: 'progress',
+                                process: 'buyUnits',
+                                aiId: ai.id,
+                                teamId: team.id,
+                                teamName: team.name,
+                                status: 'error',
+                                durationSeconds: null,
+                                expectedUnits: ai.availableUnits?.length || 0,
+                                receivedUnits: 0
+                            }
+                        }));
+                        return;
+                    }
+                    
+                    const serviceName = service.name || service.type;
+                    sendLog(`\nProcessing AI using ${serviceName}`);
+                    
+                    if (!ai.availableUnits || ai.availableUnits.length === 0) {
+                        sendLog(`No available units for this AI, skipping.`, 'warning');
+                        window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                            detail: {
+                                type: 'progress',
+                                process: 'buyUnits',
+                                aiId: ai.id,
+                                teamId: team.id,
+                                teamName: team.name,
+                                status: 'error',
+                                durationSeconds: null,
+                                expectedUnits: 0,
+                                receivedUnits: 0
+                            }
+                        }));
+                        return;
+                    }
+                    
+                    sendProgress(`Collecting data for ${team.name}...`);
+                    
+                    const unitInfoPromises = ai.availableUnits.map(unitId => collectUnitInfo(unitId));
+                    const unitsInfo = await Promise.all(unitInfoPromises);
+                    const validUnitsInfo = unitsInfo.filter(info => info !== null);
+                    
+                    sendLog(`Data collected for ${validUnitsInfo.length} units.`);
+                    
+                    if (validUnitsInfo.length === 0) {
+                        sendLog(`No valid units available, skipping.`, 'warning');
+                        window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                            detail: {
+                                type: 'progress',
+                                process: 'buyUnits',
+                                aiId: ai.id,
+                                teamId: team.id,
+                                teamName: team.name,
+                                status: 'error',
+                                durationSeconds: null,
+                                expectedUnits: 0,
+                                receivedUnits: 0
+                            }
+                        }));
+                        return;
+                    }
+                    
+                    const promptData = validUnitsInfo.map(info => {
                     const unit = info.unit;
                     const skills = info.skills;
                     const seffects = info.seffects;
@@ -394,164 +458,177 @@ ${JSON.stringify(seffect.data, null, 2)}
                     return unitDetails;
                 }).join('\n\n');
                 
-                const fullPrompt = `${promptTemplate}\n\nInitial Gold: ${initialGold}\n\n${promptData}`;
-                
-                sendLog('Full prompt built:');
-                sendLog('------ START OF PROMPT ------');
-                sendLog(fullPrompt);
-                sendLog('------ END OF PROMPT ------');
-                
-                try {
-                    sendProgress(`Sending buy units prompt to ${team.name}...`);
-                    const llmResponse = await sendPrompt(service, fullPrompt);
+                    const fullPrompt = `${promptTemplate}\n\nInitial Gold: ${initialGold}\n\n${promptData}`;
                     
-                    sendLog(`Response received from ${serviceName}:`);
-                    sendLog('------ START OF RESPONSE ------');
-                    sendLog(llmResponse.content);
-                    sendLog('------ END OF RESPONSE ------');
+                    sendLog('Full prompt built:');
+                    sendLog('------ START OF PROMPT ------');
+                    sendLog(fullPrompt);
+                    sendLog('------ END OF PROMPT ------');
                     
-                    sendProgress(`Processing response from ${team.name}...`);
+                    window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                        detail: {
+                            type: 'progress',
+                            process: 'buyUnits',
+                            aiId: ai.id,
+                            teamId: team.id,
+                            teamName: team.name,
+                            status: 'processing',
+                            durationSeconds: null,
+                            budget: initialGold,
+                            spend: 0
+                        }
+                    }));
                     
                     try {
-                        let contentText = llmResponse.content;
-                        
-                        let jsonStart = contentText.indexOf('{');
-                        let jsonEnd = contentText.lastIndexOf('}') + 1;
-                        
-                        if (jsonStart === -1 || jsonEnd === 0) {
-                            throw new Error('No JSON found in response');
-                        }
-                        
-                        const jsonContent = contentText.substring(jsonStart, jsonEnd);
-                        const purchasesData = JSON.parse(jsonContent);
-                        
-                        if (!purchasesData.purchases) {
-                            throw new Error('Incorrect JSON format, "purchases" object not found');
-                        }
-                        
-                        sendLog(`Analyzing purchases response from ${serviceName}...`);
-                        
-                        let totalCost = 0;
-                        const purchasedUnits = [];
-                        
-                        for (const [unitId, quantity] of Object.entries(purchasesData.purchases)) {
-                            const unit = loadedUnits.get(unitId);
-                            if (!unit) {
-                                sendLog(`Warning: Unit ${unitId} not found in loaded units, skipping`, 'warning');
-                                continue;
-                            }
-                            
-                            const unitCost = unit.cost * quantity;
-                            totalCost += unitCost;
-                            
-                            if (totalCost > initialGold) {
-                                sendLog(`Warning: Budget exceeded (${totalCost}/${initialGold}), adjusting purchases`, 'warning');
-                                break;
-                            }
-                            
-                            purchasedUnits.push({
-                                id: unitId,
-                                quantity: quantity
-                            });
-                            
-                            sendLog(`- Purchasing ${quantity}x ${unit.name} (${unitId}) for ${unitCost} gold`);
-                        }
-                        
-                        sendLog(`Total cost: ${totalCost}/${initialGold} gold`);
-                        
-                        if (purchasedUnits.length > 0) {
-                            ai.purchasedUnits = purchasedUnits;
-                            sendLog(`Successfully purchased ${purchasedUnits.length} different unit types.`);
-                        } else {
-                            sendLog(`No valid units purchased.`, 'warning');
-                        }
-                        
-                    } catch (jsonError) {
-                        sendLog(`Error processing JSON response from ${serviceName}: ${jsonError.message}`, 'error');
-                        
-                        let goldAvailable = initialGold;
-                        const randomPurchasedUnits = [];
-                        
-                        sendLog(`Falling back to random purchasing...`, 'warning');
-                        
-                        while (goldAvailable > 0) {
-                            const affordableUnits = ai.availableUnits.filter(unitId => {
-                                const unit = loadedUnits.get(unitId);
-                                return unit && unit.cost <= goldAvailable;
-                            });
-                            
-                            if (affordableUnits.length === 0) break;
-                            
-                            const randomIndex = Math.floor(Math.random() * affordableUnits.length);
-                            const unitId = affordableUnits[randomIndex];
-                            const unit = loadedUnits.get(unitId);
-                            
-                            if (unit) {
-                                goldAvailable -= unit.cost;
-                                
-                                const existingUnit = randomPurchasedUnits.find(pu => pu.id === unitId);
-                                if (existingUnit) {
-                                    existingUnit.quantity++;
-                                } else {
-                                    randomPurchasedUnits.push({
-                                        id: unitId,
-                                        quantity: 1
-                                    });
-                                }
-                                
-                                sendLog(`- Randomly purchased 1x ${unit.name} (${unitId}) for ${unit.cost} gold`);
-                            }
-                        }
-                        
-                        if (randomPurchasedUnits.length > 0) {
-                            ai.purchasedUnits = randomPurchasedUnits;
-                            sendLog(`Successfully purchased ${randomPurchasedUnits.length} different unit types randomly.`);
-                        }
-                    }
-                    
-                } catch (serviceError) {
-                    sendLog(`Error getting response from ${serviceName}: ${serviceError.message}`, 'error');
-                    sendLog('Falling back to random purchasing...', 'warning');
-                    
-                    let goldAvailable = initialGold;
-                    const randomPurchasedUnits = [];
-                    
-                    while (goldAvailable > 0) {
-                        const affordableUnits = ai.availableUnits.filter(unitId => {
-                            const unit = loadedUnits.get(unitId);
-                            return unit && unit.cost <= goldAvailable;
+                        sendProgress(`Sending buy units prompt to ${team.name}...`);
+                        const startTime = Date.now();
+                        const llmResponse = await sendPrompt(service, fullPrompt, {
+                            aiId: ai.id,
+                            matchId,
+                            teamId: team.id,
+                            promptType: 'buy_units'
                         });
                         
-                        if (affordableUnits.length === 0) break;
+                        const responseTime = (Date.now() - startTime) / 1000;
                         
-                        const randomIndex = Math.floor(Math.random() * affordableUnits.length);
-                        const unitId = affordableUnits[randomIndex];
-                        const unit = loadedUnits.get(unitId);
+                        sendLog(`Response received from ${serviceName}:`);
+                        sendLog('------ START OF RESPONSE ------');
+                        sendLog(llmResponse.content);
+                        sendLog('------ END OF RESPONSE ------');
                         
-                        if (unit) {
-                            goldAvailable -= unit.cost;
+                        sendProgress(`Processing response from ${team.name}...`);
+                        
+                        try {
+                            let contentText = llmResponse.content;
                             
-                            const existingUnit = randomPurchasedUnits.find(pu => pu.id === unitId);
-                            if (existingUnit) {
-                                existingUnit.quantity++;
-                            } else {
-                                randomPurchasedUnits.push({
-                                    id: unitId,
-                                    quantity: 1
-                                });
+                            let jsonStart = contentText.indexOf('{');
+                            let jsonEnd = contentText.lastIndexOf('}') + 1;
+                            
+                            if (jsonStart === -1 || jsonEnd === 0) {
+                                throw new Error('No JSON found in response');
                             }
                             
-                            sendLog(`- Randomly purchased 1x ${unit.name} (${unitId}) for ${unit.cost} gold`);
+                            const jsonContent = contentText.substring(jsonStart, jsonEnd);
+                            const purchasesData = JSON.parse(jsonContent);
+                            
+                            if (!purchasesData.purchases) {
+                                throw new Error('Incorrect JSON format, "purchases" object not found');
+                            }
+                            
+                            sendLog(`Analyzing purchases response from ${serviceName}...`);
+                            
+                            let totalCost = 0;
+                            const purchasedUnits = [];
+                            let budgetWarningSent = false;
+                            
+                            for (const [unitId, quantity] of Object.entries(purchasesData.purchases)) {
+                                const unit = loadedUnits.get(unitId);
+                                if (!unit) {
+                                    sendLog(`Warning: Unit ${unitId} not found in loaded units, skipping`, 'warning');
+                                    continue;
+                                }
+                                
+                                const unitCost = unit.cost * quantity;
+                                totalCost += unitCost;
+                                
+                                if (totalCost > initialGold) {
+                                    sendLog(`Warning: Budget exceeded (${totalCost}/${initialGold}), adjusting purchases`, 'warning');
+                                    if (!budgetWarningSent && matchId) {
+                                        budgetWarningSent = true;
+                                        reportValidationIssue(
+                                            `buy-units-${team.id}-${ai.id}.json`,
+                                            `Budget exceeded while purchasing units. Requested ${totalCost}/${initialGold} gold.`,
+                                            false,
+                                            {
+                                                aiId: ai.id,
+                                                teamId: team.id,
+                                                aiName: serviceName,
+                                                teamName: team.name,
+                                                matchId
+                                            },
+                                            { warningIncrement: 1 }
+                                        ).catch(error => console.error('Error reporting budget overrun:', error));
+                                    }
+                                    break;
+                                }
+                                
+                                purchasedUnits.push({
+                                    id: unitId,
+                                    quantity: quantity
+                                });
+                                
+                                sendLog(`- Purchasing ${quantity}x ${unit.name} (${unitId}) for ${unitCost} gold`);
+                            }
+                            
+                            sendLog(`Total cost: ${totalCost}/${initialGold} gold`);
+                            
+                            if (purchasedUnits.length > 0) {
+                                ai.purchasedUnits = purchasedUnits;
+                                sendLog(`Successfully purchased ${purchasedUnits.length} different unit types.`);
+                            } else {
+                                sendLog(`No valid units purchased.`, 'warning');
+                            }
+
+                            window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                                detail: {
+                                    type: 'progress',
+                                    process: 'buyUnits',
+                                    aiId: ai.id,
+                                    teamId: team.id,
+                                    teamName: team.name,
+                                    status: 'success',
+                                    durationSeconds: responseTime,
+                                    budget: initialGold,
+                                    spend: totalCost
+                                }
+                            }));
+                            
+                        } catch (jsonError) {
+                            const errorMessage = `Error processing JSON response from ${serviceName}: ${jsonError.message}`;
+                            sendLog(errorMessage, 'error');
+                            ai.purchasedUnits = [];
+                            flagCriticalBuyError(ai, team, serviceName, errorMessage);
+                            window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                                detail: {
+                                    type: 'progress',
+                                    process: 'buyUnits',
+                                    aiId: ai.id,
+                                    teamId: team.id,
+                                    teamName: team.name,
+                                    status: 'error',
+                                    durationSeconds: null,
+                                    expectedUnits: ai.availableUnits.length,
+                                    receivedUnits: 0
+                                }
+                            }));
+                            return;
                         }
+                        
+                    } catch (serviceError) {
+                        const errorMessage = `Error getting response from ${serviceName}: ${serviceError.message}`;
+                        sendLog(errorMessage, 'error');
+                        ai.purchasedUnits = [];
+                        flagCriticalBuyError(ai, team, serviceName, errorMessage);
+                        window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                            detail: {
+                                type: 'progress',
+                                process: 'buyUnits',
+                                aiId: ai.id,
+                                teamId: team.id,
+                                teamName: team.name,
+                                status: 'error',
+                                durationSeconds: null,
+                                expectedUnits: ai.availableUnits.length,
+                                receivedUnits: 0
+                            }
+                        }));
+                        return;
                     }
-                    
-                    if (randomPurchasedUnits.length > 0) {
-                        ai.purchasedUnits = randomPurchasedUnits;
-                        sendLog(`Successfully purchased ${randomPurchasedUnits.length} different unit types randomly.`);
-                    }
-                }
-            }
-        }
+                })());
+            });
+        });
+
+        await Promise.all(tasks);
         
         sendProgress('Saving updated team configuration...');
         

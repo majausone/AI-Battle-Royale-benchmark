@@ -7,7 +7,11 @@ export class UnitEditor {
     constructor() {
         this.currentUnit = null;
         this.selectedColor = '#000000';
-        this.graphics = [];
+        this.graphicsFrames = {};
+        this.activeFrame = 'idle';
+        this.copiedFrame = null;
+        this.gridWidth = 5;
+        this.gridHeight = 7;
         this.pixelSize = 20;
         this.audioContext = null;
         this.editor = null;
@@ -21,11 +25,56 @@ export class UnitEditor {
     }
 
     initializeGraphics() {
-        this.graphics = [];
-        for (let y = 0; y < 7; y++) {
-            const row = new Array(5).fill(null);
-            this.graphics.push(row);
+        this.gridWidth = 5;
+        this.gridHeight = 7;
+        this.graphicsFrames = {
+            idle: this.createEmptyFrame(),
+            move1: this.createEmptyFrame(),
+            move2: this.createEmptyFrame(),
+            attack: this.createEmptyFrame()
+        };
+        this.activeFrame = 'idle';
+    }
+
+    createEmptyFrame(width = this.gridWidth, height = this.gridHeight) {
+        const frame = [];
+        for (let y = 0; y < height; y++) {
+            frame.push(new Array(width).fill(null));
         }
+        return frame;
+    }
+
+    cloneFrame(frame) {
+        return frame ? frame.map(row => row.slice()) : this.createEmptyFrame();
+    }
+
+    getActiveFrameKey() {
+        return this.activeFrame || 'idle';
+    }
+
+    getActiveFrame() {
+        const key = this.getActiveFrameKey();
+        if (!this.graphicsFrames[key]) {
+            this.graphicsFrames[key] = this.createEmptyFrame();
+        }
+        return this.graphicsFrames[key];
+    }
+
+    normalizeFrameToCurrentSize(frame) {
+        const targetWidth = this.gridWidth;
+        const targetHeight = this.gridHeight;
+        const normalized = this.createEmptyFrame(targetWidth, targetHeight);
+
+        if (!frame || !Array.isArray(frame)) {
+            return normalized;
+        }
+
+        for (let y = 0; y < Math.min(targetHeight, frame.length); y++) {
+            for (let x = 0; x < Math.min(targetWidth, frame[y].length); x++) {
+                normalized[y][x] = frame[y][x];
+            }
+        }
+        return normalized;
     }
 
     initAudioContext() {
@@ -162,6 +211,26 @@ export class UnitEditor {
             this.resizeGrid(width, height);
         });
 
+        const frameTabs = this.editor.querySelectorAll('.frame-tab');
+        frameTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                frameTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                this.activeFrame = tab.dataset.frame;
+                this.setupPixelGrid();
+            });
+        });
+
+        this.editor.querySelector('.copy-frame')?.addEventListener('click', () => {
+            this.copiedFrame = this.cloneFrame(this.getActiveFrame());
+        });
+
+        this.editor.querySelector('.paste-frame')?.addEventListener('click', () => {
+            if (!this.copiedFrame) return;
+            this.graphicsFrames[this.getActiveFrameKey()] = this.normalizeFrameToCurrentSize(this.copiedFrame);
+            this.setupPixelGrid();
+        });
+
         this.editor.querySelectorAll('.sound-config').forEach(config => {
             const soundType = config.id.replace('-sound', '');
 
@@ -214,18 +283,20 @@ export class UnitEditor {
 
         grid.innerHTML = '';
 
-        for (let y = 0; y < this.graphics.length; y++) {
+        const frame = this.getActiveFrame();
+
+        for (let y = 0; y < frame.length; y++) {
             const gridRow = document.createElement('div');
             gridRow.className = 'grid-row';
 
-            for (let x = 0; x < this.graphics[y].length; x++) {
+            for (let x = 0; x < frame[y].length; x++) {
                 const pixel = document.createElement('div');
                 pixel.className = 'pixel';
                 pixel.style.width = `${this.pixelSize}px`;
                 pixel.style.height = `${this.pixelSize}px`;
 
-                if (this.graphics[y][x]) {
-                    pixel.style.backgroundColor = this.graphics[y][x];
+                if (frame[y][x]) {
+                    pixel.style.backgroundColor = frame[y][x];
                 }
 
                 pixel.addEventListener('mousedown', () => {
@@ -246,29 +317,26 @@ export class UnitEditor {
     }
 
     resizeGrid(width, height) {
-        const newGraphics = [];
-        for (let y = 0; y < height; y++) {
-            const row = new Array(width).fill(null);
-            newGraphics.push(row);
-        }
-
-        for (let y = 0; y < Math.min(height, this.graphics.length); y++) {
-            for (let x = 0; x < Math.min(width, this.graphics[0].length); x++) {
-                newGraphics[y][x] = this.graphics[y][x];
-            }
-        }
-
-        this.graphics = newGraphics;
+        this.gridWidth = Math.max(3, Math.min(12, width));
+        this.gridHeight = Math.max(3, Math.min(12, height));
+        Object.keys(this.graphicsFrames).forEach(key => {
+            this.graphicsFrames[key] = this.normalizeFrameToCurrentSize(this.graphicsFrames[key]);
+        });
+        const widthInput = this.editor.querySelector('#grid-width');
+        const heightInput = this.editor.querySelector('#grid-height');
+        if (widthInput) widthInput.value = this.gridWidth;
+        if (heightInput) heightInput.value = this.gridHeight;
         this.setupPixelGrid();
     }
 
     setPixelColor(pixel, x, y) {
+        const frame = this.getActiveFrame();
         if (this.selectedColor === null) {
             pixel.style.backgroundColor = 'transparent';
-            this.graphics[y][x] = null;
+            frame[y][x] = null;
         } else {
             pixel.style.backgroundColor = this.selectedColor;
-            this.graphics[y][x] = this.selectedColor;
+            frame[y][x] = this.selectedColor;
         }
     }
 
@@ -277,7 +345,8 @@ export class UnitEditor {
         pixels.forEach(pixel => {
             pixel.style.backgroundColor = 'transparent';
         });
-        this.graphics = this.graphics.map(row => row.map(() => null));
+        const frame = this.getActiveFrame();
+        this.graphicsFrames[this.getActiveFrameKey()] = frame.map(row => row.map(() => null));
     }
 
     async loadAvailableSkillsAndEffects() {
@@ -388,10 +457,26 @@ export class UnitEditor {
             this.editor.querySelector('#projectile-trail-color').value = this.currentUnit.projectileTrailColor;
         }
 
-        this.graphics = JSON.parse(JSON.stringify(this.currentUnit.graphics));
-        this.editor.querySelector('#grid-width').value = this.graphics[0].length;
-        this.editor.querySelector('#grid-height').value = this.graphics.length;
+        const baseWidth = Array.isArray(this.currentUnit.graphics?.[0]) ? this.currentUnit.graphics[0].length : 5;
+        const baseHeight = Array.isArray(this.currentUnit.graphics) ? this.currentUnit.graphics.length : 7;
+        this.gridWidth = Math.max(3, Math.min(12, baseWidth));
+        this.gridHeight = Math.max(3, Math.min(12, baseHeight));
+        this.graphicsFrames = {
+            idle: this.normalizeFrameToCurrentSize(this.currentUnit.graphics),
+            move1: this.normalizeFrameToCurrentSize(this.currentUnit.animationGraphics?.move1 || this.currentUnit.graphics),
+            move2: this.normalizeFrameToCurrentSize(this.currentUnit.animationGraphics?.move2 || this.currentUnit.graphics),
+            attack: this.normalizeFrameToCurrentSize(this.currentUnit.animationGraphics?.attack || this.currentUnit.graphics)
+        };
+        this.copiedFrame = null;
+        this.activeFrame = 'idle';
+        this.editor.querySelector('#grid-width').value = this.gridWidth;
+        this.editor.querySelector('#grid-height').value = this.gridHeight;
         this.setupPixelGrid();
+
+        const frameTabs = this.editor.querySelectorAll('.frame-tab');
+        frameTabs.forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.frame === this.activeFrame);
+        });
 
         const skillCheckboxes = this.editor.querySelectorAll('#skills-list input[type="checkbox"]');
         skillCheckboxes.forEach(checkbox => {
@@ -424,7 +509,12 @@ export class UnitEditor {
             scale: parseFloat(this.editor.querySelector('#unit-scale').value),
             damage: parseInt(this.editor.querySelector('#unit-damage').value),
             attackType: this.editor.querySelector('#attack-type').value,
-            graphics: this.graphics,
+            graphics: this.normalizeFrameToCurrentSize(this.graphicsFrames.idle),
+            animationGraphics: {
+                move1: this.normalizeFrameToCurrentSize(this.graphicsFrames.move1),
+                move2: this.normalizeFrameToCurrentSize(this.graphicsFrames.move2),
+                attack: this.normalizeFrameToCurrentSize(this.graphicsFrames.attack)
+            },
             sounds: this.currentUnit.sounds
         };
 

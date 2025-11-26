@@ -167,12 +167,20 @@ async function adaptUnitPricesWithLLM() {
         sendLog('Configuration obtained.');
         
         const availableTeams = config.teams.filter(team => team.isAvailable);
-        const servicesInMatch = new Set();
+        const servicesInMatch = new Map();
+        const matchId = window.currentMatchId || null;
         
         availableTeams.forEach(team => {
             team.ais.forEach(ai => {
+                if (ai.service_id && !servicesInMatch.has(ai.service_id)) {
+                    servicesInMatch.set(ai.service_id, []);
+                }
                 if (ai.service_id) {
-                    servicesInMatch.add(ai.service_id);
+                    servicesInMatch.get(ai.service_id).push({
+                        aiId: ai.id,
+                        teamId: team.id,
+                        teamName: team.name
+                    });
                 }
             });
         });
@@ -276,22 +284,46 @@ ${JSON.stringify(seffect.data, null, 2)}
             const unitPrices = {};
             const unitPricesByAI = {};
             
-            for (const service of activeServices) {
-                sendProgress(`Sending prompt to ${service.name}...`);
-                
-                try {
-                    const llmResponse = await sendPrompt(service, fullPrompt);
-                    
-                    sendLog(`Response received from ${service.name}:`);
-                    sendLog('------ START OF RESPONSE ------');
-                    sendLog(llmResponse.content);
-                    sendLog('------ END OF RESPONSE ------');
-                    
-                    sendProgress(`Processing response from ${service.name}...`);
-                    
+            const tasks = activeServices.map(service => {
+                return (async () => {
+                    const usageList = servicesInMatch.get(service.service_id) || [];
+                    const usageInfo = usageList[0] || null;
+                    const serviceLabel = service.name || service.type;
+                    sendProgress(`Sending prompt to ${serviceLabel}...`);
+                    usageList.forEach(info => {
+                        window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                            detail: {
+                                type: 'progress',
+                                process: 'adaptPrices',
+                                aiId: info.aiId || service.service_id,
+                                teamId: info.teamId,
+                                teamName: info.teamName || serviceLabel,
+                                status: 'processing',
+                                durationSeconds: null,
+                                expectedUnits: validUnitsInfo.length,
+                                receivedUnits: 0
+                            }
+                        }));
+                    });
+                    const startTime = Date.now();
                     try {
-                        let contentText = llmResponse.content;
+                        const llmResponse = await sendPrompt(service, fullPrompt, {
+                            aiId: usageInfo?.aiId || null,
+                            matchId,
+                            teamId: usageInfo?.teamId || null,
+                            promptType: 'adapt_prices'
+                        });
                         
+                        const responseTime = (Date.now() - startTime) / 1000;
+                        
+                        sendLog(`Response received from ${serviceLabel}:`);
+                        sendLog('------ START OF RESPONSE ------');
+                        sendLog(llmResponse.content);
+                        sendLog('------ END OF RESPONSE ------');
+                        
+                        sendProgress(`Processing response from ${serviceLabel}...`);
+                        
+                        let contentText = llmResponse.content;
                         let jsonStart = contentText.indexOf('{');
                         let jsonEnd = contentText.lastIndexOf('}') + 1;
                         
@@ -306,7 +338,7 @@ ${JSON.stringify(seffect.data, null, 2)}
                             throw new Error('Incorrect JSON format, "prices" object not found');
                         }
                         
-                        sendLog(`Analyzing price response from ${service.name}...`);
+                        sendLog(`Analyzing price response from ${serviceLabel}...`);
                         
                         const priceEntries = Object.entries(pricesData.prices);
                         sendLog(`Found ${priceEntries.length} prices to update:`);
@@ -320,17 +352,46 @@ ${JSON.stringify(seffect.data, null, 2)}
                             
                             unitPricesByAI[unitId].push(price);
                         }
-                        
+
+                        // Emit per each AI associated with this service to keep UI consistent
+                        usageList.forEach(info => {
+                        window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                            detail: {
+                                type: 'progress',
+                                process: 'adaptPrices',
+                                aiId: info.aiId || service.service_id,
+                                teamId: info.teamId,
+                                teamName: info.teamName || serviceLabel,
+                                status: 'success',
+                                durationSeconds: responseTime,
+                                expectedUnits: priceEntries.length,
+                                receivedUnits: priceEntries.length
+                            }
+                        }));
+                        });
                     } catch (jsonError) {
-                        sendLog(`Error processing JSON response from ${service.name}: ${jsonError.message}`, 'error');
+                        usageList.forEach(info => {
+                            window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                                detail: {
+                                    type: 'progress',
+                                    process: 'adaptPrices',
+                                    aiId: info.aiId || service.service_id,
+                                    teamId: info.teamId,
+                                    teamName: info.teamName || serviceLabel,
+                                    status: 'error',
+                                    durationSeconds: null,
+                                    expectedUnits: validUnitsInfo.length,
+                                    receivedUnits: 0
+                                }
+                            }));
+                        });
+                        sendLog(`Error processing JSON response from ${serviceLabel}: ${jsonError.message}`, 'error');
                         sendLog('Continuing with next AI service...', 'warning');
                     }
-                    
-                } catch (serviceError) {
-                    sendLog(`Error getting response from ${service.name}: ${serviceError.message}`, 'error');
-                    sendLog('Continuing with next AI service...', 'warning');
-                }
-            }
+                })();
+            });
+
+            await Promise.all(tasks);
             
             sendProgress('Calculating average prices...');
             

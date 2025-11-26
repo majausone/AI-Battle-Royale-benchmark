@@ -134,19 +134,30 @@ export class DataTab {
         
         ais.forEach(ai => {
             const key = ai.service_type;
+            const totalErrors = typeof ai.total_errors === 'number' ? ai.total_errors : 0;
+            const totalWarnings = typeof ai.total_warnings === 'number' ? ai.total_warnings : 0;
+            const weightedIssues = typeof ai.weighted_issues === 'number'
+                ? ai.weighted_issues
+                : (totalWarnings + totalErrors * 4);
             
             if (aisMap.has(key)) {
                 const existingAi = aisMap.get(key);
                 existingAi.total_matches += ai.total_matches || 0;
                 existingAi.wins += ai.wins || 0;
-                existingAi.errors += ai.errors || 0;
+                existingAi.weighted_issues += weightedIssues || 0;
+                existingAi.total_units_created += ai.total_units_created || 0;
+                existingAi.total_errors += totalErrors;
+                existingAi.total_warnings += totalWarnings;
             } else {
                 aisMap.set(key, {
                     name: ai.name,
                     service_type: ai.service_type,
                     total_matches: ai.total_matches || 0,
                     wins: ai.wins || 0,
-                    errors: ai.errors || 0
+                    weighted_issues: weightedIssues || 0,
+                    total_units_created: ai.total_units_created || 0,
+                    total_errors: totalErrors,
+                    total_warnings: totalWarnings
                 });
             }
         });
@@ -399,6 +410,14 @@ export class DataTab {
                     }
                 },
                 {
+                    text: 'Delete Only Files',
+                    type: 'warning',
+                    action: () => {
+                        popupManager.hide();
+                        this.deleteOnlyFiles(matchId);
+                    }
+                },
+                {
                     text: 'Cancel',
                     type: 'primary',
                     action: () => popupManager.hide()
@@ -438,6 +457,42 @@ export class DataTab {
             console.error('Error deleting match:', error);
             await popupManager.showError(
                 `Error deleting match: ${error.message}`,
+                'Error'
+            );
+        }
+    }
+
+    async deleteOnlyFiles(matchId) {
+        try {
+            const url = `/api/stats/match/${matchId}/delete-only-files`;
+            
+            const response = await fetch(url, { method: 'DELETE' });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to delete match files: ${response.status}`);
+            }
+            
+            const result = await response.json();
+            
+            await popupManager.show({
+                title: 'Success',
+                message: `Files for match #${matchId} have been successfully deleted.`,
+                type: 'info',
+                buttons: [
+                    {
+                        text: 'OK',
+                        type: 'primary',
+                        action: () => popupManager.hide()
+                    }
+                ]
+            });
+            
+            this.loadMatches(this.getCurrentFilters());
+            
+        } catch (error) {
+            console.error('Error deleting match files:', error);
+            await popupManager.showError(
+                `Error deleting match files: ${error.message}`,
                 'Error'
             );
         }
@@ -500,6 +555,160 @@ export class DataTab {
             } catch (error) {
                 console.error('Error loading config:', error);
             }
+
+            const promptMetrics = data.promptMetrics || [];
+
+            const formatDuration = (seconds) => {
+                if (typeof seconds !== 'number' || Number.isNaN(seconds)) {
+                    return '-';
+                }
+                if (seconds < 60) {
+                    return `${Math.round(seconds)}s`;
+                }
+                const wholeSeconds = Math.round(seconds);
+                const minutes = Math.floor(wholeSeconds / 60);
+                const remainingSeconds = wholeSeconds % 60;
+                if (remainingSeconds === 0) {
+                    return `${minutes}m`;
+                }
+                return `${minutes}m ${remainingSeconds}s`;
+            };
+
+            const formatPromptType = (type) => {
+                if (!type) return 'Unknown';
+                return type
+                    .split('_')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
+            };
+
+            const promptMetricsRows = promptMetrics.map(metric => {
+                const serviceLabel = metric.service_name || metric.service_type || '-';
+                const modelLabel = metric.model_name || '-';
+                const teamLabel = metric.team_name || '-';
+                const aiLabel = metric.ai_id ? `#${metric.ai_id}` : '-';
+                return `
+                    <tr>
+                        <td>${formatPromptType(metric.prompt_type)}</td>
+                        <td>${serviceLabel}</td>
+                        <td>${modelLabel}</td>
+                        <td>${teamLabel}</td>
+                        <td>${aiLabel}</td>
+                        <td>${formatDuration(metric.duration_seconds)}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            const totalDuration = promptMetrics.reduce((sum, metric) => {
+                const value = parseFloat(metric.duration_seconds);
+                return sum + (Number.isNaN(value) ? 0 : value);
+            }, 0);
+            const matchAverage = promptMetrics.length ? totalDuration / promptMetrics.length : null;
+            const matchAverageLabel = matchAverage !== null ? formatDuration(matchAverage) : '-';
+
+            const promptMetricsSection = `
+                <details class="collapsible-section prompt-metrics-section">
+                    <summary>Prompt Performance</summary>
+                    <div class="prompt-metrics-body">
+                        <div class="prompt-match-average">
+                            Tiempo medio en esta partida: <strong>${matchAverageLabel}</strong>
+                        </div>
+                        ${promptMetrics.length ? `
+                            <table class="details-table prompt-metrics-table">
+                                <thead>
+                                    <tr>
+                                        <th>Prompt</th>
+                                        <th>Model</th>
+                                        <th>Version</th>
+                                        <th>Team</th>
+                                        <th>AI</th>
+                                        <th>Duration</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${promptMetricsRows}
+                                </tbody>
+                            </table>
+                        ` : '<p class="empty-table">No prompt performance data for this match.</p>'}
+                    </div>
+                </details>
+            `;
+
+            const summaryRows = (() => {
+                const totals = {};
+                data.participants.forEach(participant => {
+                    const aiName = aiNames[participant.service_type] || participant.service_type || `AI #${participant.ai_id}`;
+                    const errors = participant.has_errors || 0;
+                    const warnings = participant.has_warnings || 0;
+                    totals[aiName] = {
+                        errors,
+                        warnings,
+                        weightedIssues: warnings + errors * 4
+                    };
+                });
+
+                return Object.entries(totals).map(([aiName, counts]) => {
+                    const totalIssues = counts.weightedIssues ?? (counts.errors + counts.warnings);
+                    return `
+                        <tr>
+                            <td>${aiName}</td>
+                            <td class="error-number">${counts.errors}</td>
+                            <td class="warning-number">${counts.warnings}</td>
+                            <td><strong>${totalIssues}</strong></td>
+                        </tr>
+                    `;
+                }).join('');
+            })();
+
+            const summarySection = `
+                <div class="errors-summary-container" style="grid-column: 1 / -1;">
+                    <h4>Summary by AI</h4>
+                    <table class="errors-summary-table">
+                        <thead>
+                            <tr>
+                                <th>AI Service</th>
+                                <th>Total Errors</th>
+                                <th>Total Warnings</th>
+                                <th>Total Issues</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${summaryRows}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            const filesSection = `
+                <details class="collapsible-section errors-section" style="grid-column: 1 / -1;">
+                    <summary>Files</summary>
+                    <div class="files-body">
+                        ${data.files && data.files.length > 0 ? `
+                        <table class="details-table">
+                            <thead>
+                                <tr>
+                                    <th>AI</th>
+                                    <th>File</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.files.map(f => {
+                                    const participant = data.participants.find(p => p.ai_id === f.ai_id);
+                                    const aiName = participant ? (aiNames[participant.service_type] || participant.service_type || `AI #${f.ai_id}`) : `AI #${f.ai_id}`;
+                                    
+                                    return `
+                                        <tr>
+                                            <td>${aiName}</td>
+                                            <td>${f.filename}</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                        ` : '<p>No files available</p>'}
+                    </div>
+                </details>
+            `;
             
             let html = `
                 <div class="match-info">
@@ -509,6 +718,8 @@ export class DataTab {
                     <p><strong>End:</strong> ${data.match.end_time ? new Date(data.match.end_time).toLocaleString() : 'In progress'}</p>
                     <p><strong>Status:</strong> ${data.match.status}</p>
                 </div>
+                
+                ${summarySection}
                 
                 <div class="participants-section">
                     <h4>Participants</h4>
@@ -529,75 +740,10 @@ export class DataTab {
                         </tbody>
                     </table>
                 </div>
+
+                ${promptMetricsSection}
                 
-                <div class="errors-section" style="grid-column: 1 / -1;">
-                    <h4>Files</h4>
-                    ${data.files && data.files.length > 0 ? `
-                    <table class="details-table">
-                        <thead>
-                            <tr>
-                                <th>AI</th>
-                                <th>File</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${data.files.map(f => {
-                                const participant = data.participants.find(p => p.ai_id === f.ai_id);
-                                const aiName = participant ? (aiNames[participant.service_type] || participant.service_type || `AI #${f.ai_id}`) : `AI #${f.ai_id}`;
-                                
-                                return `
-                                    <tr>
-                                        <td>${aiName}</td>
-                                        <td>${f.filename}</td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
-                    <div class="errors-summary-container">
-                        <h4>Summary by AI</h4>
-                        <table class="errors-summary-table">
-                            <thead>
-                                <tr>
-                                    <th>AI Service</th>
-                                    <th>Total Errors</th>
-                                    <th>Total Warnings</th>
-                                    <th>Total Issues</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${(() => {
-                                    const totals = {};
-                                    data.participants.forEach(participant => {
-                                        const aiName = aiNames[participant.service_type] || participant.service_type || `AI #${participant.ai_id}`;
-                                        const responseData = (data.responses || []).find(r => r.ai_id === participant.ai_id);
-                                        if (responseData) {
-                                            totals[aiName] = {
-                                                errors: responseData.has_errors || 0,
-                                                warnings: responseData.has_warnings || 0
-                                            };
-                                        } else {
-                                            totals[aiName] = { errors: 0, warnings: 0 };
-                                        }
-                                    });
-                                    
-                                    return Object.entries(totals).map(([aiName, counts]) => {
-                                        const totalIssues = counts.errors + counts.warnings;
-                                        return `
-                                            <tr>
-                                                <td>${aiName}</td>
-                                                <td class="error-number">${counts.errors}</td>
-                                                <td class="warning-number">${counts.warnings}</td>
-                                                <td><strong>${totalIssues}</strong></td>
-                                            </tr>
-                                        `;
-                                    }).join('');
-                                })()}
-                            </tbody>
-                        </table>
-                    </div>
-                    ` : '<p>No files available</p>'}
-                </div>
+                ${filesSection}
             `;
             
             detailsContent.innerHTML = html;

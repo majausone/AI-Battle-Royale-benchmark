@@ -58,6 +58,8 @@ SkillManager.prototype.applyAuraSkill = async function(skill, unit) {
         EVENTS,
         getGameSpeed
     } = await import('./baseSkill.js');
+
+    const { teamStats } = await import('./gameState.js');
     
     if (skill.metadata.fx) {
         this.reportIssue(skill, `Warning: Skill ${skill.id} is of type AURA but uses 'fx' directly. FX should be handled by seffects and will be ignored.`);
@@ -317,6 +319,27 @@ SkillManager.prototype.applyAuraSkill = async function(skill, unit) {
                     
                     const oldHealth = target.health;
                     target.health = Math.min(target.maxHealth, Math.max(0, target.health + value));
+                    
+                    const healthDiff = target.health - oldHealth;
+                    if (target.teamId) {
+                        const team = teamStats.get(target.teamId);
+                        if (team) {
+                            if (healthDiff > 0) {
+                                team.currentHealth = Math.min(team.totalHealth, team.currentHealth + healthDiff);
+                            } else if (healthDiff < 0) {
+                                team.currentHealth = Math.max(0, team.currentHealth + healthDiff);
+                            }
+                            
+                            if (target.aiId && team.ais.has(target.aiId)) {
+                                const ai = team.ais.get(target.aiId);
+                                if (healthDiff > 0) {
+                                    ai.currentHealth = Math.min(ai.totalHealth, ai.currentHealth + healthDiff);
+                                } else if (healthDiff < 0) {
+                                    ai.currentHealth = Math.max(0, ai.currentHealth + healthDiff);
+                                }
+                            }
+                        }
+                    }
                     
                     if (target.health <= 0 && oldHealth > 0) {
                         killUnit(target);

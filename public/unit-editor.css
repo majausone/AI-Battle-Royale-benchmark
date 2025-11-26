@@ -148,6 +148,61 @@
     flex: 0 0 350px;
 }
 
+.frame-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.frame-tab-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+}
+
+.frame-tab {
+    padding: 8px;
+    background: #333;
+    color: #ccc;
+    border: 1px solid #444;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.2s ease;
+}
+
+.frame-tab.active {
+    background: #4CAF50;
+    color: #fff;
+    border-color: #4CAF50;
+}
+
+.frame-tab:hover {
+    color: #fff;
+    border-color: #666;
+}
+
+.frame-tab-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.frame-tab-actions button {
+    flex: 1;
+    padding: 8px;
+    background: #444;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.frame-tab-actions button:hover {
+    background: #555;
+}
+
 .tools-section {
     flex: 0 0 250px;
 }

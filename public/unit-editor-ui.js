@@ -137,6 +137,18 @@ export function createEditorDOM() {
                         <h3 class="tab-title">Graphics Editor</h3>
                         <div class="editor-flex-row">
                             <div class="editor-section grid-section">
+                                <div class="frame-tabs">
+                                    <div class="frame-tab-buttons">
+                                        <button class="frame-tab active" data-frame="idle">Frame 1 (Idle)</button>
+                                        <button class="frame-tab" data-frame="move1">Frame 2 (Move)</button>
+                                        <button class="frame-tab" data-frame="move2">Frame 3 (Move)</button>
+                                        <button class="frame-tab" data-frame="attack">Frame 4 (Attack)</button>
+                                    </div>
+                                    <div class="frame-tab-actions">
+                                        <button class="copy-frame">Copy</button>
+                                        <button class="paste-frame">Paste</button>
+                                    </div>
+                                </div>
                                 <div class="pixel-grid" id="pixel-grid"></div>
                             </div>
 
@@ -154,13 +166,13 @@ export function createEditorDOM() {
                                         <button data-color="#4B0082" style="background: #4B0082"></button>
                                     </div>
                                     <button class="clear-pixel">Eraser</button>
-                                    <button class="clear-all">Clear All</button>
+                                        <button class="clear-all">Clear All</button>
                                     <div class="grid-size">
                                         <label>Grid Size</label>
                                         <div class="size-inputs">
-                                            <input type="number" id="grid-width" min="3" max="9" value="5">
+                                            <input type="number" id="grid-width" min="3" max="12" value="5">
                                             <span>x</span>
-                                            <input type="number" id="grid-height" min="3" max="9" value="7">
+                                            <input type="number" id="grid-height" min="3" max="12" value="7">
                                         </div>
                                         <button class="resize-grid">Resize</button>
                                     </div>

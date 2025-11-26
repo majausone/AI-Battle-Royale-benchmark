@@ -12,7 +12,7 @@ import { requestUnitsForTeams, requestUnitsForSpecificAI } from './aiRequestUnit
 import { adaptUnitPrices, setSimplePriceMode } from './aiPrices.js';
 import { buyUnitsForTeams, setSimpleBuyMode } from './aiBuy.js';
 import { handleRoundEnd, startNextRound, initializeNewGame, executeFullRound } from './roundControl.js';
-import { onRequestStatus, initSocket } from './socketManager.js';
+import { onRequestStatus, initSocket, clearValidationCache } from './socketManager.js';
 import { matchProcessPopup } from './matchProcessPopup.js';
 import { testerPopup } from './tester-popup.js';
 
@@ -172,6 +172,20 @@ export class RoundTab {
     }
 
     spawnUnits(teams) {
+        const availableTeams = teams.filter(team => team.isAvailable !== false);
+        const activeTeamIds = availableTeams
+            .filter(team => team.ais.some(ai =>
+                Array.isArray(ai.purchasedUnits) &&
+                ai.purchasedUnits.some(unit => unit.quantity > 0)
+            ))
+            .map(team => team.id);
+
+        if (activeTeamIds.length > 0) {
+            gameState.setActiveBattleTeams(activeTeamIds);
+        } else {
+            gameState.setActiveBattleTeams(availableTeams.map(team => team.id));
+        }
+
         teams.forEach(team => {
             if (team.isAvailable === false) return;
             team.ais.forEach(ai => {
@@ -410,9 +424,9 @@ export class RoundTab {
         });
 
         startMatch.addEventListener('click', async () => {
-            matchProcessPopup.show(null, null, null);
-            
             initSocket();
+            gameState.clearGameErrors();
+            clearValidationCache();
             
             try {
                 const response = await fetch('/api/matches/create', {
@@ -429,6 +443,7 @@ export class RoundTab {
                 }
                 
                 this.currentMatchId = data.matchId;
+                window.currentMatchId = data.matchId;
                 window.dispatchEvent(new CustomEvent('matchCreated', {
                     detail: { matchId: data.matchId }
                 }));
@@ -454,57 +469,61 @@ export class RoundTab {
                     }
                 }
 
-                window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
-                    detail: { type: 'start', process: 'requestUnits' }
-                }));
+                const startProcessCallback = async () => {
+                    window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                        detail: { type: 'start', process: 'requestUnits' }
+                    }));
 
-                await new Promise((resolve) => {
-                    const unsubscribe = onRequestStatus((data) => {
-                        if (data.status === 'completed') {
-                            unsubscribe();
-                            resolve();
-                        }
+                    await new Promise((resolve) => {
+                        const unsubscribe = onRequestStatus((data) => {
+                            if (data.status === 'completed') {
+                                unsubscribe();
+                                resolve();
+                            }
+                        });
+                        requestUnitsForTeams(this.currentMatchId);
                     });
-                    requestUnitsForTeams(this.currentMatchId);
-                });
 
-                window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
-                    detail: { type: 'complete', process: 'requestUnits', success: true }
-                }));
+                    window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                        detail: { type: 'complete', process: 'requestUnits', success: true }
+                    }));
 
-                await initializeUnits();
-                await this.loadConfig();
-                await new Promise(resolve => setTimeout(resolve, 500));
+                    await initializeUnits();
+                    await this.loadConfig();
+                    await new Promise(resolve => setTimeout(resolve, 500));
 
-                window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
-                    detail: { type: 'start', process: 'adaptPrices' }
-                }));
-                
-                await adaptUnitPrices();
-                
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
-                    detail: { type: 'complete', process: 'adaptPrices', success: true }
-                }));
-                
-                window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
-                    detail: { type: 'start', process: 'buyUnits' }
-                }));
-                
-                await buyUnitsForTeams();
-                
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
-                    detail: { type: 'complete', process: 'buyUnits', success: true }
-                }));
+                    window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                        detail: { type: 'start', process: 'adaptPrices' }
+                    }));
+                    
+                    await adaptUnitPrices();
+                    
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                        detail: { type: 'complete', process: 'adaptPrices', success: true }
+                    }));
+                    
+                    window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                        detail: { type: 'start', process: 'buyUnits' }
+                    }));
+                    
+                    await buyUnitsForTeams();
+                    
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                        detail: { type: 'complete', process: 'buyUnits', success: true }
+                    }));
 
-                await initializeUnits();
-                await this.loadConfig();
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                executeFullRound(gameState, () => this.initializeTeams(), (teams) => this.spawnUnits(teams), false, this.currentMatchId);
+                    await initializeUnits();
+                    await this.loadConfig();
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    executeFullRound(gameState, () => this.initializeTeams(), (teams) => this.spawnUnits(teams), false, this.currentMatchId);
+                };
+
+                matchProcessPopup.show(this.currentMatchId, null, null, startProcessCallback);
                 
             } catch (error) {
                 console.error('Error in startMatch:', error);
@@ -513,8 +532,6 @@ export class RoundTab {
         });
         
         reMatch.addEventListener('click', async () => {
-            matchProcessPopup.show(null, null, null);
-            
             initSocket();
             
             try {
@@ -532,6 +549,7 @@ export class RoundTab {
                 }
                 
                 this.currentMatchId = data.matchId;
+                window.currentMatchId = data.matchId;
                 window.dispatchEvent(new CustomEvent('matchCreated', {
                     detail: { matchId: data.matchId }
                 }));
@@ -557,35 +575,39 @@ export class RoundTab {
                     }
                 }
                 
-                window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
-                    detail: { type: 'start', process: 'adaptPrices' }
-                }));
-                
-                await adaptUnitPrices();
-                
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
-                    detail: { type: 'complete', process: 'adaptPrices', success: true }
-                }));
-                
-                window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
-                    detail: { type: 'start', process: 'buyUnits' }
-                }));
-                
-                await buyUnitsForTeams();
-                
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
-                    detail: { type: 'complete', process: 'buyUnits', success: true }
-                }));
+                const startProcessCallback = async () => {
+                    window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                        detail: { type: 'start', process: 'adaptPrices' }
+                    }));
+                    
+                    await adaptUnitPrices();
+                    
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                        detail: { type: 'complete', process: 'adaptPrices', success: true }
+                    }));
+                    
+                    window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                        detail: { type: 'start', process: 'buyUnits' }
+                    }));
+                    
+                    await buyUnitsForTeams();
+                    
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
+                        detail: { type: 'complete', process: 'buyUnits', success: true }
+                    }));
 
-                await initializeUnits();
-                await this.loadConfig();
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                executeFullRound(gameState, () => this.initializeTeams(), (teams) => this.spawnUnits(teams), false, this.currentMatchId);
+                    await initializeUnits();
+                    await this.loadConfig();
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    executeFullRound(gameState, () => this.initializeTeams(), (teams) => this.spawnUnits(teams), false, this.currentMatchId);
+                };
+
+                matchProcessPopup.show(this.currentMatchId, null, null, startProcessCallback);
                 
             } catch (error) {
                 console.error('Error in reMatch:', error);

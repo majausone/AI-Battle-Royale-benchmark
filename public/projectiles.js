@@ -13,7 +13,7 @@ export function startProjectileAttack(unit, unitData) {
         interval: Math.random() * (unitData.attackInterval.max - unitData.attackInterval.min) + unitData.attackInterval.min
     };
 
-    unit.updateProjectiles = function(deltaTime) {
+    unit.updateProjectiles = function (deltaTime) {
         if (!gameObjects.has(unit.id)) return;
 
         const now = Date.now();
@@ -31,7 +31,7 @@ export function startProjectileAttack(unit, unitData) {
 function shootProjectile(unit, unitData) {
     const startX = unit.x + unit.width / 2;
     const startY = unit.y + unit.height / 2;
-    
+
     const projectile = createProjectile(startX, startY, 8, 8, unitData.projectileColor);
     projectile.sourceTeamId = unit.teamId;
     const projectileId = `projectile-${Date.now()}-${Math.random()}`;
@@ -58,30 +58,34 @@ function shootProjectile(unit, unitData) {
         return;
     }
 
-    const dx = nearestTarget.x + nearestTarget.width/2 - startX;
-    const dy = nearestTarget.y + nearestTarget.height/2 - startY;
+    const dx = nearestTarget.x + nearestTarget.width / 2 - startX;
+    const dy = nearestTarget.y + nearestTarget.height / 2 - startY;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    
+
     const vx = (dx / distance) * unitData.projectileSpeed;
     const vy = (dy / distance) * unitData.projectileSpeed;
 
-    playAttackSound(unitData);
-    
+    playAttackSound(unitData, {
+        aiId: unit.aiId,
+        teamId: unit.teamId,
+        unitType: unit.type
+    });
+
     emit(unit, EVENTS.ATTACK, { target: nearestTarget });
 
     if (unitData.effects?.attack) {
         const effect = getEffect(unitData.effects.attack);
         if (effect) {
-            effect(unit, {x: startX, y: startY});
+            effect(unit, { x: startX, y: startY });
         }
     } else {
         const defaultAttack = getEffect('defaultAttack');
         if (defaultAttack) {
-            defaultAttack(unit, {x: startX, y: startY});
+            defaultAttack(unit, { x: startX, y: startY });
         }
     }
 
-    projectile.update = function(deltaTime) {
+    projectile.update = function (deltaTime) {
         if (!projectile.active) {
             projectiles.delete(projectileId);
             return;
@@ -105,13 +109,17 @@ function shootProjectile(unit, unitData) {
 
         let hasCollided = false;
         gameObjects.forEach(target => {
-            if (!hasCollided && 
-                target.id !== unit.id && 
-                (!unit.teamId || target.teamId !== unit.teamId) && 
+            if (!hasCollided &&
+                target.id !== unit.id &&
+                (!unit.teamId || target.teamId !== unit.teamId) &&
                 checkCollision(projectile, target)) {
                 const damage = getModifiedStat(unit, 'damage');
                 attackKewo(target, damage, unit);
-                playProjectileImpactSound();
+                playProjectileImpactSound({
+                    aiId: unit.aiId,
+                    teamId: unit.teamId,
+                    unitType: unit.type
+                });
                 removeProjectile(projectile);
                 projectiles.delete(projectileId);
                 hasCollided = true;

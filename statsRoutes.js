@@ -37,6 +37,24 @@ const handleAsyncRoute = (fn) => async (req, res) => {
     }
 };
 
+function buildMatchesDateFilter(query = {}) {
+    const conditions = [];
+    const params = [];
+
+    if (query.dateFrom && query.dateFrom.trim() !== '') {
+        conditions.push('start_time >= ?');
+        params.push(query.dateFrom.trim());
+    }
+
+    if (query.dateTo && query.dateTo.trim() !== '') {
+        conditions.push('start_time <= ?');
+        params.push(query.dateTo.trim());
+    }
+
+    const clause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    return { clause, params };
+}
+
 export function setupRouteStats(app) {
     app.get('/api/stats/matches', handleAsyncRoute(async (req, res) => {
         try {
@@ -127,24 +145,43 @@ export function setupRouteStats(app) {
     app.get('/api/stats/ais', handleAsyncRoute(async (req, res) => {
         try {
             const db = await getDatabase();
-            
+            const { clause, params } = buildMatchesDateFilter(req.query);
+
             const query = `
+                WITH filtered_matches AS (
+                    SELECT match_id FROM matches
+                    ${clause}
+                ),
+                ai_issues AS (
+                    SELECT mp.ai_id,
+                           SUM(mp.has_errors) as total_errors,
+                           SUM(mp.has_warnings) as total_warnings,
+                           SUM(mp.total_units_created) as total_units_created
+                    FROM match_participants mp
+                    JOIN filtered_matches fm2 ON mp.match_id = fm2.match_id
+                    GROUP BY mp.ai_id
+                )
                 SELECT ta.ai_id as ai_id, 
                        s.name as name,
                        s.type as service_type,
                        t.name as team_name,
-                       COUNT(DISTINCT mp.match_id) as total_matches,
-                       SUM(CASE WHEN mp.is_winner THEN 1 ELSE 0 END) as wins,
-                       (SELECT COUNT(*) FROM responses r WHERE r.ai_id = ta.ai_id AND r.has_errors = 1) as errors
+                       COALESCE(ai_issues.total_units_created, 0) as total_units_created,
+                       COUNT(DISTINCT CASE WHEN fm.match_id IS NOT NULL THEN mp.match_id END) as total_matches,
+                       SUM(CASE WHEN mp.is_winner = 1 AND fm.match_id IS NOT NULL THEN 1 ELSE 0 END) as wins,
+                       COALESCE(ai_issues.total_errors, 0) as total_errors,
+                       COALESCE(ai_issues.total_warnings, 0) as total_warnings,
+                       COALESCE(ai_issues.total_warnings, 0) + COALESCE(ai_issues.total_errors, 0) * 4 as weighted_issues
                 FROM team_ais ta
                 JOIN ai_services s ON ta.service_id = s.service_id
                 JOIN teams t ON ta.team_id = t.team_id
                 LEFT JOIN match_participants mp ON ta.ai_id = mp.ai_id
+                LEFT JOIN filtered_matches fm ON mp.match_id = fm.match_id
+                LEFT JOIN ai_issues ON ta.ai_id = ai_issues.ai_id
                 GROUP BY ta.ai_id
                 ORDER BY wins DESC, total_matches DESC
             `;
             
-            const ais = await db.allAsync(query);
+            const ais = await db.allAsync(query, params);
             
             return { ais };
         } catch (error) {
@@ -156,22 +193,31 @@ export function setupRouteStats(app) {
     app.get('/api/stats/teams', handleAsyncRoute(async (req, res) => {
         try {
             const db = await getDatabase();
-            
+            const { clause, params } = buildMatchesDateFilter(req.query);
+
             const query = `
-                SELECT t.*, 
-                       (SELECT COUNT(DISTINCT mp.match_id) 
-                        FROM match_participants mp 
-                        JOIN team_ais ta ON mp.ai_id = ta.ai_id 
-                        WHERE ta.team_id = t.team_id) as total_matches,
-                       (SELECT COUNT(DISTINCT mp.match_id) 
-                        FROM match_participants mp 
-                        JOIN team_ais ta ON mp.ai_id = ta.ai_id 
-                        WHERE ta.team_id = t.team_id AND mp.is_winner = 1) as wins
+                WITH filtered_matches AS (
+                    SELECT match_id FROM matches
+                    ${clause}
+                ),
+                team_participation AS (
+                    SELECT ta.team_id,
+                           mp.match_id,
+                           mp.is_winner
+                    FROM match_participants mp
+                    JOIN team_ais ta ON mp.ai_id = ta.ai_id
+                    JOIN filtered_matches fm ON mp.match_id = fm.match_id
+                )
+                SELECT t.*,
+                       COUNT(DISTINCT tp.match_id) as total_matches,
+                       COALESCE(SUM(CASE WHEN tp.is_winner = 1 THEN 1 ELSE 0 END), 0) as wins
                 FROM teams t
+                LEFT JOIN team_participation tp ON t.team_id = tp.team_id
+                GROUP BY t.team_id
                 ORDER BY wins DESC, total_matches DESC
             `;
             
-            const teams = await db.allAsync(query);
+            const teams = await db.allAsync(query, params);
             
             return { teams };
         } catch (error) {
@@ -194,7 +240,7 @@ export function setupRouteStats(app) {
                        s.name, s.type as service_type,
                        COUNT(DISTINCT mp.match_id) as total_matches,
                        SUM(CASE WHEN mp.is_winner THEN 1 ELSE 0 END) as wins,
-                       (SELECT COUNT(*) FROM responses r WHERE r.ai_id = ta.ai_id AND r.has_errors = 1) as errors
+                       COALESCE(SUM(mp.has_errors + mp.has_warnings), 0) as errors
                 FROM team_ais ta
                 JOIN ai_services s ON ta.service_id = s.service_id
                 LEFT JOIN match_participants mp ON ta.ai_id = mp.ai_id
@@ -385,16 +431,25 @@ export function setupRouteStats(app) {
             }
             
             const participantsQuery = `
-                SELECT mp.*, 
-                       (SELECT s.type FROM team_ais ta JOIN ai_services s ON ta.service_id = s.service_id WHERE ta.ai_id = mp.ai_id LIMIT 1) as service_type,
-                       (SELECT t.name FROM team_ais ta JOIN teams t ON ta.team_id = t.team_id WHERE ta.ai_id = mp.ai_id LIMIT 1) as name
-                FROM match_participants mp 
+                SELECT mp.*,
+                       ta.service_id as service_id,
+                       s.type as service_type,
+                       s.name as service_name,
+                       s.model as service_model,
+                       t.name as team_name,
+                       t.name as name
+                FROM match_participants mp
+                LEFT JOIN team_ais ta ON mp.ai_id = ta.ai_id
+                LEFT JOIN ai_services s ON ta.service_id = s.service_id
+                LEFT JOIN teams t ON ta.team_id = t.team_id
                 WHERE mp.match_id = ?
             `;
             const participants = await db.allAsync(participantsQuery, [matchId]);
             
             const responsesQuery = `
-                SELECT * FROM responses WHERE match_id = ?
+                SELECT r.*, 0 as has_errors, 0 as has_warnings
+                FROM responses r
+                WHERE r.match_id = ?
             `;
             const responses = await db.allAsync(responsesQuery, [matchId]);
             
@@ -424,7 +479,16 @@ export function setupRouteStats(app) {
                 SELECT * FROM ai_evaluations WHERE match_id = ?
             `;
             const evaluations = await db.allAsync(evaluationsQuery, [matchId]);
-            
+
+            const promptMetricsQuery = `
+                SELECT pm.*, t.name as team_name
+                FROM prompt_metrics pm
+                LEFT JOIN teams t ON pm.team_id = t.team_id
+                WHERE pm.match_id = ?
+                ORDER BY pm.created_at DESC
+            `;
+            const promptMetrics = await db.allAsync(promptMetricsQuery, [matchId]);
+
             return {
                 match,
                 participants,
@@ -432,10 +496,45 @@ export function setupRouteStats(app) {
                 files,
                 roundHistory,
                 roundWins,
-                evaluations
+                evaluations,
+                promptMetrics
             };
         } catch (error) {
             console.error('Error fetching match details:', error);
+            throw error;
+        }
+    }));
+
+    app.get('/api/stats/prompt-metrics', handleAsyncRoute(async (req) => {
+        try {
+            const db = await getDatabase();
+            const { clause, params } = buildMatchesDateFilter(req.query);
+            const query = `
+                WITH filtered_matches AS (
+                    SELECT match_id FROM matches
+                    ${clause}
+                )
+                SELECT 
+                    pm.ai_id,
+                    s.name as service_name,
+                    s.type as service_type,
+                    t.name as team_name,
+                    COUNT(*) as total_prompts,
+                    AVG(pm.duration_seconds) as average_duration
+                FROM prompt_metrics pm
+                JOIN filtered_matches fm ON pm.match_id = fm.match_id
+                LEFT JOIN team_ais ta ON pm.ai_id = ta.ai_id
+                LEFT JOIN ai_services s ON ta.service_id = s.service_id
+                LEFT JOIN teams t ON ta.team_id = t.team_id
+                WHERE pm.ai_id IS NOT NULL
+                GROUP BY pm.ai_id, s.name, s.type, t.name
+                ORDER BY average_duration DESC
+            `;
+
+            const promptDurations = await db.allAsync(query, params);
+            return { promptDurations };
+        } catch (error) {
+            console.error('Error fetching prompt metrics summary:', error);
             throw error;
         }
     }));
@@ -479,6 +578,7 @@ export function setupRouteStats(app) {
                 await db.runAsync('DELETE FROM ai_evaluations WHERE match_id = ?', [matchId]);
                 await db.runAsync('DELETE FROM files WHERE match_id = ?', [matchId]);
                 await db.runAsync('DELETE FROM responses WHERE match_id = ?', [matchId]);
+                await db.runAsync('DELETE FROM prompt_metrics WHERE match_id = ?', [matchId]);
                 await db.runAsync('DELETE FROM round_team_states WHERE round_history_id IN (SELECT id FROM round_history WHERE match_id = ?)', [matchId]);
                 await db.runAsync('DELETE FROM round_history WHERE match_id = ?', [matchId]);
                 await db.runAsync('DELETE FROM round_wins WHERE match_id = ?', [matchId]);
@@ -513,6 +613,7 @@ export function setupRouteStats(app) {
                 await db.runAsync('DELETE FROM ai_evaluations WHERE match_id = ?', [matchId]);
                 await db.runAsync('DELETE FROM files WHERE match_id = ?', [matchId]);
                 await db.runAsync('DELETE FROM responses WHERE match_id = ?', [matchId]);
+                await db.runAsync('DELETE FROM prompt_metrics WHERE match_id = ?', [matchId]);
                 await db.runAsync('DELETE FROM round_team_states WHERE round_history_id IN (SELECT id FROM round_history WHERE match_id = ?)', [matchId]);
                 await db.runAsync('DELETE FROM round_history WHERE match_id = ?', [matchId]);
                 await db.runAsync('DELETE FROM round_wins WHERE match_id = ?', [matchId]);
@@ -529,6 +630,65 @@ export function setupRouteStats(app) {
             }
         } catch (error) {
             console.error('Error deleting match data:', error);
+            throw error;
+        }
+    }));
+
+    app.delete('/api/stats/match/:id/delete-only-files', handleAsyncRoute(async (req, res) => {
+        try {
+            const matchId = parseInt(req.params.id, 10);
+            if (isNaN(matchId)) {
+                throw new Error('Invalid match ID');
+            }
+            
+            const db = await getDatabase();
+            await db.runAsync('BEGIN TRANSACTION');
+            
+            try {
+                const files = await db.allAsync('SELECT * FROM files WHERE match_id = ?', [matchId]);
+                
+                let deletedFiles = 0;
+                let failedFiles = 0;
+                
+                for (const file of files) {
+                    const fileType = file.filename.split('-')[0];
+                    let directory = '';
+                    
+                    if (fileType === 'skill') {
+                        directory = 'skills';
+                    } else if (fileType === 'fx') {
+                        directory = 'fx';
+                    } else if (fileType === 'seffect') {
+                        directory = 'seffects';
+                    } else {
+                        directory = 'units';
+                    }
+                    
+                    const filePath = join(__dirname, 'public', directory, file.filename);
+                    
+                    try {
+                        await fs.unlink(filePath);
+                        deletedFiles++;
+                    } catch (err) {
+                        console.error(`Error deleting file ${filePath}:`, err);
+                        failedFiles++;
+                    }
+                }
+                
+                await db.runAsync('COMMIT');
+                
+                return { 
+                    success: true, 
+                    message: `Files for match ${matchId} deleted successfully`,
+                    deletedFiles,
+                    failedFiles
+                };
+            } catch (error) {
+                await db.runAsync('ROLLBACK');
+                throw error;
+            }
+        } catch (error) {
+            console.error('Error deleting match files:', error);
             throw error;
         }
     }));
@@ -942,7 +1102,7 @@ export function setupRouteStats(app) {
     
     app.post('/api/responses/create', handleAsyncRoute(async (req, res) => {
         try {
-            const { ai_id, match_id, response, has_errors, has_warnings, response_time } = req.body;
+            const { ai_id, match_id, response, response_time } = req.body;
             
             if (!ai_id || !match_id || !response) {
                 throw new Error('Missing required fields for response');
@@ -959,8 +1119,6 @@ export function setupRouteStats(app) {
                 aiIdInt, 
                 matchIdInt, 
                 response, 
-                has_errors || 0, 
-                has_warnings || 0, 
                 response_time || 0
             );
             

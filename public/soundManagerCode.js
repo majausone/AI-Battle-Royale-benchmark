@@ -1,6 +1,9 @@
+import { reportValidationIssue } from './socketManager.js';
+
 export let audioCtx = null;
 export let masterGain = null;
 export let volume = 0.5;
+const soundIssueCache = new Set();
 
 function initAudio() {
     if (!audioCtx) {
@@ -117,6 +120,37 @@ function randomizeSettings(element) {
     playSound(element);
 }
 
+function handleSoundIssue(issueKey, message, sourceContext = {}, isError = false) {
+    if (soundIssueCache.has(issueKey)) {
+        return false;
+    }
+
+    soundIssueCache.add(issueKey);
+    console.warn(message);
+
+    try {
+        reportValidationIssue(
+            `sound-config-${sourceContext.unitType || 'unknown'}.json`,
+            message,
+            isError,
+            {
+                aiId: sourceContext.aiId || null,
+                teamId: sourceContext.teamId || null,
+                aiName: sourceContext.aiName || null,
+                teamName: sourceContext.teamName || null
+            },
+            {
+                warningIncrement: isError ? 0 : 1,
+                errorIncrement: isError ? 1 : 0
+            }
+        );
+    } catch (error) {
+        console.error('Error reporting sound issue:', error);
+    }
+
+    return true;
+}
+
 function playSound(element) {
     const { audioCtx, masterGain } = initAudio();
     const settings = getCurrentSettings(element);
@@ -196,7 +230,7 @@ function playSound(element) {
         filter.disconnect();
     }, duration * 1000 + 100);
 }
-export function playConfigSound(config) {
+export function playConfigSound(config, sourceContext = {}) {
     const REQUIRED_PARAMS = 14;
 
     if (!Array.isArray(config)) {
@@ -232,7 +266,12 @@ export function playConfigSound(config) {
 
     const validTypes = ['sine', 'square', 'sawtooth', 'triangle'];
     if (!validTypes.includes(oscillatorType)) {
-        console.warn(`Invalid oscillator type: ${oscillatorType}. Defaulting to sine.`);
+        handleSoundIssue(
+            `oscillator:${sourceContext.aiId || 'unknown'}`,
+            `Invalid oscillator type: ${oscillatorType}. Defaulting to sine.`,
+            sourceContext,
+            false
+        );
         oscillatorType = 'sine';
     }
 
@@ -247,7 +286,12 @@ export function playConfigSound(config) {
     }
 
     if (typeof modFrequency !== 'number' || modFrequency < 0.1 || modFrequency > 20) {
-        console.warn(`Invalid modulation frequency: ${modFrequency}. Defaulting to 5Hz.`);
+        handleSoundIssue(
+            `modFrequency:${sourceContext.aiId || 'unknown'}`,
+            `Invalid modulation frequency: ${modFrequency}. Defaulting to 5Hz.`,
+            sourceContext,
+            false
+        );
         modFrequency = 5;
     }
 

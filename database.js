@@ -64,6 +64,67 @@ function createDbConnection() {
     return new sqlite.Database(dbPath);
 }
 
+async function ensureGameSettingsSchema(database) {
+    try {
+        const columns = await database.allAsync("PRAGMA table_info('game_settings')");
+        const hasUnitsNumber = columns.some(column => column.name === 'units_number');
+        const hasPromptMode = columns.some(column => column.name === 'prompt_mode');
+
+        if (!hasUnitsNumber) {
+            await database.runAsync("ALTER TABLE game_settings ADD COLUMN units_number INTEGER NOT NULL DEFAULT 3");
+            await database.runAsync("UPDATE game_settings SET units_number = 3 WHERE units_number IS NULL");
+        }
+
+        if (!hasPromptMode) {
+            await database.runAsync("ALTER TABLE game_settings ADD COLUMN prompt_mode TEXT NOT NULL DEFAULT 'normal'");
+            await database.runAsync("UPDATE game_settings SET prompt_mode = 'normal' WHERE prompt_mode IS NULL");
+        }
+    } catch (error) {
+        console.error('Error ensuring game_settings schema:', error);
+        throw error;
+    }
+}
+
+async function ensureMatchParticipantsSchema(database) {
+    try {
+        const columns = await database.allAsync("PRAGMA table_info('match_participants')");
+        const hasUnits = columns.some(c => c.name === 'total_units_created');
+        const hasErrors = columns.some(c => c.name === 'has_errors');
+        const hasWarnings = columns.some(c => c.name === 'has_warnings');
+        if (!hasUnits) {
+            await database.runAsync("ALTER TABLE match_participants ADD COLUMN total_units_created INTEGER NOT NULL DEFAULT 0");
+        }
+        if (!hasErrors) {
+            await database.runAsync("ALTER TABLE match_participants ADD COLUMN has_errors INTEGER NOT NULL DEFAULT 0");
+        }
+        if (!hasWarnings) {
+            await database.runAsync("ALTER TABLE match_participants ADD COLUMN has_warnings INTEGER NOT NULL DEFAULT 0");
+        }
+    } catch (error) {
+        console.error('Error ensuring match_participants schema:', error);
+        throw error;
+    }
+}
+
+async function ensureDisplaySettingsSchema(database) {
+    try {
+        const columns = await database.allAsync("PRAGMA table_info('display_settings')");
+        const hasMapTheme = columns.some(column => column.name === 'map_theme');
+        const hasRainMode = columns.some(column => column.name === 'rain_mode');
+
+        if (!hasMapTheme) {
+            await database.runAsync("ALTER TABLE display_settings ADD COLUMN map_theme TEXT NOT NULL DEFAULT 'none'");
+        }
+
+        if (!hasRainMode) {
+            await database.runAsync("ALTER TABLE display_settings ADD COLUMN rain_mode TEXT NOT NULL DEFAULT 'never'");
+        }
+    } catch (error) {
+        console.error('Error ensuring display_settings schema:', error);
+        throw error;
+    }
+}
+
 async function initDatabase() {
     try {
         const database = createDbConnection();
@@ -96,7 +157,11 @@ async function initDatabase() {
                 ai_id           INTEGER     NOT NULL,
                 is_winner       INTEGER     DEFAULT 0,
                 created_at      DATETIME    DEFAULT CURRENT_TIMESTAMP,
+                total_units_created INTEGER NOT NULL DEFAULT 0,
+                has_errors      INTEGER     NOT NULL DEFAULT 0,
+                has_warnings    INTEGER     NOT NULL DEFAULT 0,
                 FOREIGN KEY (match_id) REFERENCES matches (match_id),
+                FOREIGN KEY (ai_id) REFERENCES team_ais (ai_id),
                 UNIQUE(match_id, ai_id)
             );
 
@@ -105,12 +170,34 @@ async function initDatabase() {
                 ai_id           INTEGER     NOT NULL,
                 match_id        INTEGER     NOT NULL,
                 response        TEXT        NOT NULL,
-                has_errors      INTEGER     DEFAULT 0,
-                has_warnings    INTEGER     DEFAULT 0,
                 response_time   REAL,
                 created_at      DATETIME    DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (match_id) REFERENCES matches (match_id)
+                FOREIGN KEY (match_id) REFERENCES matches (match_id),
+                FOREIGN KEY (ai_id) REFERENCES team_ais (ai_id)
             );
+
+            CREATE TABLE IF NOT EXISTS prompt_metrics (
+                metric_id        INTEGER     PRIMARY KEY,
+                match_id         INTEGER,
+                ai_id            INTEGER,
+                team_id          INTEGER,
+                service_id       INTEGER,
+                service_type     TEXT,
+                service_name     TEXT,
+                model_name       TEXT,
+                prompt_type      TEXT        NOT NULL,
+                duration_seconds REAL        NOT NULL DEFAULT 0,
+                created_at       DATETIME    DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (match_id) REFERENCES matches (match_id),
+                FOREIGN KEY (ai_id) REFERENCES team_ais (ai_id),
+                FOREIGN KEY (team_id) REFERENCES teams (team_id),
+                FOREIGN KEY (service_id) REFERENCES ai_services (service_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_prompt_metrics_match ON prompt_metrics(match_id);
+            CREATE INDEX IF NOT EXISTS idx_prompt_metrics_prompt ON prompt_metrics(prompt_type);
+            CREATE INDEX IF NOT EXISTS idx_prompt_metrics_ai ON prompt_metrics(ai_id);
+            CREATE INDEX IF NOT EXISTS idx_prompt_metrics_service ON prompt_metrics(service_id);
 
             CREATE TABLE IF NOT EXISTS files (
                 file_id         INTEGER     PRIMARY KEY,
@@ -132,7 +219,9 @@ async function initDatabase() {
                 code_quality_score REAL,
                 comments          TEXT,
                 created_at        DATETIME    DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (match_id) REFERENCES matches (match_id)
+                FOREIGN KEY (match_id) REFERENCES matches (match_id),
+                FOREIGN KEY (evaluator_ai_id) REFERENCES team_ais (ai_id),
+                FOREIGN KEY (evaluated_ai_id) REFERENCES team_ais (ai_id)
             );
 
             CREATE TABLE IF NOT EXISTS game_settings (
@@ -140,7 +229,9 @@ async function initDatabase() {
                 initial_gold INTEGER NOT NULL,
                 num_rounds INTEGER NOT NULL,
                 error_penalty INTEGER NOT NULL,
-                max_errors INTEGER NOT NULL
+                max_errors INTEGER NOT NULL,
+                units_number INTEGER NOT NULL DEFAULT 3,
+                prompt_mode TEXT NOT NULL DEFAULT 'normal'
             );
 
             CREATE TABLE IF NOT EXISTS teams (
@@ -195,7 +286,9 @@ async function initDatabase() {
                 show_units_counter BOOLEAN DEFAULT 0,
                 show_game_speed_indicator BOOLEAN DEFAULT 0,
                 volume INTEGER DEFAULT 50,
-                game_speed REAL DEFAULT 1.0
+                game_speed REAL DEFAULT 1.0,
+                map_theme TEXT NOT NULL DEFAULT 'none',
+                rain_mode TEXT NOT NULL DEFAULT 'never'
             );
 
             CREATE TABLE IF NOT EXISTS match_state (
@@ -210,7 +303,7 @@ async function initDatabase() {
                 round_number INTEGER NOT NULL,
                 winner_team_id INTEGER NOT NULL,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (match_id) REFERENCES matches(match_id),
+                FOREIGN KEY (match_id) REFERENCES match_state(match_id),
                 FOREIGN KEY (winner_team_id) REFERENCES teams(team_id)
             );
 
@@ -228,7 +321,7 @@ async function initDatabase() {
                 match_id INTEGER NOT NULL,
                 team_id INTEGER NOT NULL,
                 wins_count INTEGER NOT NULL DEFAULT 0,
-                FOREIGN KEY (match_id) REFERENCES matches(match_id),
+                FOREIGN KEY (match_id) REFERENCES match_state(match_id),
                 FOREIGN KEY (team_id) REFERENCES teams(team_id),
                 UNIQUE(match_id, team_id)
             );
@@ -244,6 +337,10 @@ async function initDatabase() {
             CREATE INDEX IF NOT EXISTS idx_files_match ON files(match_id);
             CREATE INDEX IF NOT EXISTS idx_files_ai ON files(ai_id);
         `);
+
+        await ensureGameSettingsSchema(database);
+        await ensureMatchParticipantsSchema(database);
+        await ensureDisplaySettingsSchema(database);
 
         console.log('Database initialized successfully');
         return database;
@@ -300,17 +397,73 @@ export async function addParticipantToMatch(matchId, aiId) {
     }
 }
 
-export async function saveResponse(aiId, matchId, responseText, hasErrors, hasWarnings, responseTime) {
+export async function saveResponse(aiId, matchId, responseText, responseTime) {
     const database = await getDatabase();
     try {
         const result = await database.runAsync(
-            'INSERT INTO responses (ai_id, match_id, response, has_errors, has_warnings, response_time) VALUES (?, ?, ?, ?, ?, ?)',
-            [aiId, matchId, responseText, hasErrors, hasWarnings, responseTime]
+            'INSERT INTO responses (ai_id, match_id, response, response_time) VALUES (?, ?, ?, ?)',
+            [aiId, matchId, responseText, responseTime]
         );
 
         return result.lastID;
     } catch (error) {
         console.error('Error saving response:', error);
+        throw error;
+    }
+}
+
+export async function incrementParticipantUnits(matchId, aiId, unitsToAdd) {
+    const database = await getDatabase();
+    try {
+        await database.runAsync(
+            'UPDATE match_participants SET total_units_created = COALESCE(total_units_created,0) + ? WHERE match_id = ? AND ai_id = ?',
+            [unitsToAdd, matchId, aiId]
+        );
+    } catch (error) {
+        console.error('Error incrementing participant units:', error);
+        throw error;
+    }
+}
+
+export async function savePromptMetric(metric) {
+    const {
+        matchId = null,
+        aiId = null,
+        teamId = null,
+        serviceId = null,
+        serviceType = null,
+        serviceName = null,
+        modelName = null,
+        promptType,
+        durationSeconds = 0
+    } = metric || {};
+
+    if (!promptType) {
+        throw new Error('promptType is required to save prompt metric');
+    }
+
+    const database = await getDatabase();
+    try {
+        const result = await database.runAsync(
+            `INSERT INTO prompt_metrics 
+                (match_id, ai_id, team_id, service_id, service_type, service_name, model_name, prompt_type, duration_seconds) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                matchId,
+                aiId,
+                teamId,
+                serviceId,
+                serviceType,
+                serviceName,
+                modelName,
+                promptType,
+                durationSeconds
+            ]
+        );
+
+        return result.lastID;
+    } catch (error) {
+        console.error('Error saving prompt metric:', error);
         throw error;
     }
 }
@@ -474,12 +627,12 @@ export async function getGameSettings() {
     }
 }
 
-export async function createGameSettings(initialGold, numRounds, errorPenalty, maxErrors) {
+export async function createGameSettings(initialGold, numRounds, errorPenalty, maxErrors, unitsNumber = 3, promptMode = 'normal') {
     const database = await getDatabase();
     try {
         const result = await database.runAsync(
-            'INSERT INTO game_settings (initial_gold, num_rounds, error_penalty, max_errors) VALUES (?, ?, ?, ?)',
-            [initialGold, numRounds, errorPenalty, maxErrors]
+            'INSERT INTO game_settings (initial_gold, num_rounds, error_penalty, max_errors, units_number, prompt_mode) VALUES (?, ?, ?, ?, ?, ?)',
+            [initialGold, numRounds, errorPenalty, maxErrors, unitsNumber, promptMode]
         );
 
         return result.lastID;
@@ -489,12 +642,12 @@ export async function createGameSettings(initialGold, numRounds, errorPenalty, m
     }
 }
 
-export async function updateGameSettings(id, initialGold, numRounds, errorPenalty, maxErrors) {
+export async function updateGameSettings(id, initialGold, numRounds, errorPenalty, maxErrors, unitsNumber = 3, promptMode = 'normal') {
     const database = await getDatabase();
     try {
         await database.runAsync(
-            'UPDATE game_settings SET initial_gold = ?, num_rounds = ?, error_penalty = ?, max_errors = ? WHERE id = ?',
-            [initialGold, numRounds, errorPenalty, maxErrors, id]
+            'UPDATE game_settings SET initial_gold = ?, num_rounds = ?, error_penalty = ?, max_errors = ?, units_number = ?, prompt_mode = ? WHERE id = ?',
+            [initialGold, numRounds, errorPenalty, maxErrors, unitsNumber, promptMode, id]
         );
         return { success: true, id };
     } catch (error) {
@@ -819,12 +972,12 @@ export async function getDisplaySettings() {
     }
 }
 
-export async function createDisplaySettings(showFpsCounter, showUnitsCounter, showGameSpeedIndicator, volume, gameSpeed) {
+export async function createDisplaySettings(showFpsCounter, showUnitsCounter, showGameSpeedIndicator, volume, gameSpeed, mapTheme = 'none', rainMode = 'never') {
     const database = await getDatabase();
     try {
         const result = await database.runAsync(
-            'INSERT INTO display_settings (show_fps_counter, show_units_counter, show_game_speed_indicator, volume, game_speed) VALUES (?, ?, ?, ?, ?)',
-            [showFpsCounter ? 1 : 0, showUnitsCounter ? 1 : 0, showGameSpeedIndicator ? 1 : 0, volume, gameSpeed]
+            'INSERT INTO display_settings (show_fps_counter, show_units_counter, show_game_speed_indicator, volume, game_speed, map_theme, rain_mode) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [showFpsCounter ? 1 : 0, showUnitsCounter ? 1 : 0, showGameSpeedIndicator ? 1 : 0, volume, gameSpeed, mapTheme, rainMode]
         );
 
         return { id: result.lastID };
@@ -834,12 +987,12 @@ export async function createDisplaySettings(showFpsCounter, showUnitsCounter, sh
     }
 }
 
-export async function updateDisplaySettings(id, showFpsCounter, showUnitsCounter, showGameSpeedIndicator, volume, gameSpeed) {
+export async function updateDisplaySettings(id, showFpsCounter, showUnitsCounter, showGameSpeedIndicator, volume, gameSpeed, mapTheme = 'none', rainMode = 'never') {
     const database = await getDatabase();
     try {
         await database.runAsync(
-            'UPDATE display_settings SET show_fps_counter = ?, show_units_counter = ?, show_game_speed_indicator = ?, volume = ?, game_speed = ? WHERE id = ?',
-            [showFpsCounter ? 1 : 0, showUnitsCounter ? 1 : 0, showGameSpeedIndicator ? 1 : 0, volume, gameSpeed, id]
+            'UPDATE display_settings SET show_fps_counter = ?, show_units_counter = ?, show_game_speed_indicator = ?, volume = ?, game_speed = ?, map_theme = ?, rain_mode = ? WHERE id = ?',
+            [showFpsCounter ? 1 : 0, showUnitsCounter ? 1 : 0, showGameSpeedIndicator ? 1 : 0, volume, gameSpeed, mapTheme, rainMode, id]
         );
         return { success: true, id };
     } catch (error) {
@@ -872,12 +1025,12 @@ export async function getMatchStates() {
     }
 }
 
-export async function createMatchState(currentRound, status) {
+export async function createMatchState(matchId, currentRound, status) {
     const database = await getDatabase();
     try {
         const result = await database.runAsync(
-            'INSERT INTO match_state (current_round, status) VALUES (?, ?)',
-            [currentRound, status]
+            'INSERT INTO match_state (match_id, current_round, status) VALUES (?, ?, ?)',
+            [matchId, currentRound, status]
         );
 
         return result.lastID;

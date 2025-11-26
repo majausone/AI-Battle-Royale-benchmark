@@ -32,7 +32,7 @@
 
 .control-buttons button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 .round-info {
@@ -272,7 +272,8 @@
     gap: 8px;
 }
 
-.request-units, .test-units {
+.request-units,
+.test-units {
     flex: 1;
     padding: 8px;
     background: #4CAF50;
@@ -286,7 +287,8 @@
     transition: all 0.3s ease;
 }
 
-.request-units:hover, .test-units:hover {
+.request-units:hover,
+.test-units:hover {
     background: #45a049;
     transform: translateY(-2px);
 }
@@ -336,7 +338,8 @@
     cursor: pointer;
 }
 
-.db-test-button, .popup-button {
+.db-test-button,
+.popup-button {
     padding: 8px 16px;
     background: #4CAF50;
     color: white;
@@ -348,7 +351,8 @@
     transition: all 0.3s ease;
 }
 
-.db-test-button:hover, .popup-button:hover:not(:disabled) {
+.db-test-button:hover,
+.popup-button:hover:not(:disabled) {
     background: #45a049;
     transform: translateY(-2px);
 }
@@ -364,7 +368,7 @@
     position: absolute;
     top: 0;
     left: 0;
-    width: 100%;
+    width: 94%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.9);
     padding: 20px;

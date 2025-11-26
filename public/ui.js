@@ -67,25 +67,15 @@ export function initUI() {
                 bottom: 0;
                 display: flex;
                 align-items: center;
+                justify-content: center;
                 padding: 0 10px;
             }
 
             .team-info {
-                position: absolute;
-                left: 50%;
-                transform: translateX(-50%);
                 display: flex;
+                flex-direction: column;
                 align-items: center;
-                gap: 10px;
-                width: auto;
-                white-space: nowrap;
-                padding: 0 40px;
-            }
-
-            .team-color {
-                width: 20px;
-                height: 20px;
-                flex-shrink: 0;
+                gap: 3px;
             }
 
             .team-name {
@@ -97,15 +87,28 @@ export function initUI() {
                             -2px 2px 2px rgba(0,0,0,0.5);
             }
 
+            .team-bottom {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .team-color {
+                width: 20px;
+                height: 20px;
+                flex-shrink: 0;
+            }
+
             .team-health {
-                position: absolute;
-                left: 10px;
-                bottom: 5px;
                 color: white;
-                font-size: 12px;
+                font-size: 14px;
                 font-family: Arial;
-                min-width: 80px;
-                text-align: left;
+                font-weight: bold;
+                white-space: nowrap;
+                text-shadow: 2px 2px 2px rgba(0,0,0,0.5),
+                            -2px -2px 2px rgba(0,0,0,0.5),
+                            2px -2px 2px rgba(0,0,0,0.5),
+                            -2px 2px 2px rgba(0,0,0,0.5);
             }
 
             .vs-separator {
@@ -133,19 +136,28 @@ export function updateUI() {
     const containerWidth = (uiContainer.offsetWidth - (teamArray.length - 1) * 50) / teamArray.length;
     
     uiContainer.innerHTML = teamArray.map(([teamId, team], index) => {
-        const fontSize = calculateFontSize(team.name, containerWidth);
+        const truncatedName = team.name.length > 12 ? team.name.substring(0, 12) : team.name;
+        const fontSize = calculateFontSize(truncatedName, containerWidth);
         return `
             <div class="team-healthbar">
                 <div class="team-healthbar-fill" style="width: ${(team.currentHealth / team.totalHealth) * 100}%"></div>
                 <div class="team-healthbar-content">
-                    <span class="team-health">${Math.floor(team.currentHealth)}/${team.totalHealth}</span>
                     <div class="team-info">
-                        <div class="team-color" style="background-color: ${team.color}"></div>
-                        <span class="team-name" style="font-size: ${fontSize}px">${team.name}</span>
+                        <span class="team-name" style="font-size: ${fontSize}px">${truncatedName}</span>
+                        <div class="team-bottom">
+                            <div class="team-color" style="background-color: ${team.color}"></div>
+                            <span class="team-health">${Math.floor(team.currentHealth)}/${team.totalHealth}</span>
+                        </div>
                     </div>
                 </div>
             </div>
             ${index < teamArray.length - 1 ? '<div class="vs-separator">VS</div>' : ''}
         `;
     }).join('');
+}
+
+export function clearUI() {
+    if (uiContainer) {
+        uiContainer.innerHTML = '';
+    }
 }

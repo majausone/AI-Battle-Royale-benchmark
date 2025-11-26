@@ -3,7 +3,7 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { saveResponse, saveFile } from './database.js';
+import { saveResponse, saveFile, savePromptMetric } from './database.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -42,7 +42,8 @@ async function callLLM(serviceType, serviceModel, serviceApiKey, prompt, isReaso
                         role: "user",
                         content: prompt
                     }],
-                    max_tokens: 64000
+                    max_tokens: 64000,
+                    temperature: 1.0
                 })
             });
 
@@ -65,7 +66,8 @@ async function callLLM(serviceType, serviceModel, serviceApiKey, prompt, isReaso
                     role: "user",
                     content: prompt
                 }],
-                max_tokens: 8192
+                max_tokens: 8192,
+                temperature: 1.0
             };
 
             if (isMirror) {
@@ -99,7 +101,7 @@ async function callLLM(serviceType, serviceModel, serviceApiKey, prompt, isReaso
                     }]
                 }],
                 generationConfig: {
-                    maxOutputTokens: isThinkingModel ? 64000 : 8192,
+                    maxOutputTokens: 64000,
                     temperature: 0.7
                 }
             };
@@ -154,6 +156,41 @@ async function callLLM(serviceType, serviceModel, serviceApiKey, prompt, isReaso
                 responseText = data.choices[0].message.content;
             }
         }
+        else if (serviceType === 'moonshot') {
+            const endpoint = serviceEndpoint || 'https://api.moonshot.ai/v1/chat/completions';
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${serviceApiKey}`
+                },
+                timeout: 600000, // 10 minutes timeout
+                body: JSON.stringify({
+                    model: serviceModel,
+                    messages: [{
+                        role: "user",
+                        content: prompt
+                    }],
+                    max_tokens: 128000
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Moonshot API error: ${await response.text()}`);
+            }
+
+            const data = await response.json();
+            if (data.choices && data.choices.length > 0) {
+                const message = data.choices[0].message;
+                if (typeof message === 'string') {
+                    responseText = message;
+                } else if (message?.content) {
+                    responseText = Array.isArray(message.content)
+                        ? message.content.map(part => part?.text || part).join('\n')
+                        : message.content;
+                }
+            }
+        }
         else if (serviceType === 'chatgpt' && isReasoning) {
             const isO3Model = serviceModel.startsWith('o3-');
 
@@ -165,7 +202,8 @@ async function callLLM(serviceType, serviceModel, serviceApiKey, prompt, isReaso
                         content: prompt
                     }],
                     reasoning: { effort: "high" },
-                    max_output_tokens: 64000
+                    max_output_tokens: 64000,
+                    temperature: 1.0
                 };
 
                 const response = await fetch("https://api.openai.com/v1/responses", {
@@ -206,7 +244,8 @@ async function callLLM(serviceType, serviceModel, serviceApiKey, prompt, isReaso
                         role: "user",
                         content: prompt
                     }],
-                    max_completion_tokens: 64000
+                    max_completion_tokens: 64000,
+                    temperature: 1.0
                 };
 
                 const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -247,7 +286,8 @@ async function callLLM(serviceType, serviceModel, serviceApiKey, prompt, isReaso
                         role: "user",
                         content: prompt
                     }],
-                    max_completion_tokens: 64000
+                    max_completion_tokens: 64000,
+                    temperature: 1.0
                 })
             });
 
@@ -363,7 +403,7 @@ async function saveFileToFS(directory, fileName, content) {
 
 export function setupRouteAIPrompt(app) {
     app.post('/api/ai/prompt', handleAsyncRoute(async (req) => {
-        const { service, prompt, aiId, matchId } = req.body;
+        const { service, prompt, aiId, matchId, promptType, teamId } = req.body;
 
         if (!service || !service.endpoint || !service.apiKey || !service.model || !prompt) {
             throw new Error('Missing required fields: service (endpoint, apiKey, model) or prompt');
@@ -387,12 +427,34 @@ export function setupRouteAIPrompt(app) {
                 aiId,
                 matchId,
                 responseText,
-                0,
-                0,
                 responseTime
             );
 
             await processResponseFiles(responseText, aiId, matchId);
+            await savePromptMetric({
+                matchId,
+                aiId,
+                teamId: teamId || null,
+                serviceId: service.service_id || null,
+                serviceType: service.type,
+                serviceName: service.name || service.type,
+                modelName: service.model,
+                promptType: promptType || 'generic',
+                durationSeconds: responseTime
+            });
+        } else if (matchId) {
+            const responseTime = (Date.now() - startTime) / 1000;
+            await savePromptMetric({
+                matchId,
+                aiId: aiId || null,
+                teamId: teamId || null,
+                serviceId: service.service_id || null,
+                serviceType: service.type,
+                serviceName: service.name || service.type,
+                modelName: service.model,
+                promptType: promptType || 'generic',
+                durationSeconds: responseTime
+            });
         }
 
         return { content: responseText };

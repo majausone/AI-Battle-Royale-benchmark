@@ -38,7 +38,11 @@ export function setupRouteConfig2Display(app) {
                     volume: req.body.volume !== undefined ?
                         req.body.volume : current.volume,
                     game_speed: req.body.gameSpeed !== undefined ?
-                        req.body.gameSpeed : current.game_speed
+                        req.body.gameSpeed : current.game_speed,
+                    map_theme: req.body.mapTheme !== undefined ?
+                        req.body.mapTheme : (current.map_theme || 'none'),
+                    rain_mode: req.body.rainMode !== undefined ?
+                        req.body.rainMode : (current.rain_mode || 'never')
                 };
 
                 await updateDisplaySettings(
@@ -47,7 +51,9 @@ export function setupRouteConfig2Display(app) {
                     newSettings.show_units_counter,
                     newSettings.show_game_speed_indicator,
                     newSettings.volume,
-                    newSettings.game_speed
+                    newSettings.game_speed,
+                    newSettings.map_theme,
+                    newSettings.rain_mode
                 );
             } else {
                 await createDisplaySettings(
@@ -55,7 +61,9 @@ export function setupRouteConfig2Display(app) {
                     req.body.showUnitsCounter !== undefined ? req.body.showUnitsCounter : false,
                     req.body.showGameSpeedIndicator !== undefined ? req.body.showGameSpeedIndicator : false,
                     req.body.volume !== undefined ? req.body.volume : 50,
-                    req.body.gameSpeed !== undefined ? req.body.gameSpeed : 1.0
+                    req.body.gameSpeed !== undefined ? req.body.gameSpeed : 1.0,
+                    req.body.mapTheme !== undefined ? req.body.mapTheme : 'none',
+                    req.body.rainMode !== undefined ? req.body.rainMode : 'never'
                 );
             }
 

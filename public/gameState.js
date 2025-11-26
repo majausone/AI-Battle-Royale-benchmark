@@ -25,10 +25,24 @@ export const activeSkillEffects = new Map();
 export const activeSkills = new Map();
 export const teamStats = new Map();
 export const spawnPoints = new Map();
+let activeBattleTeams = new Set();
 export const effects = new Map();
 export const terrainEffects = new Map();
 export const activeErrors = [];
 export let nextId = 0;
+let reportValidationIssuePromise = null;
+
+const cameraState = {
+    currentZoom: 1,
+    targetZoom: 1,
+    startZoom: 1,
+    elapsed: 0,
+    duration: 500,
+    target: null,
+    startPos: null,
+    targetPos: null,
+    currentPos: null
+};
 
 const BATTLE_MARGIN_TOP = 75;
 const BATTLE_MARGIN_SIDES = 4;
@@ -64,6 +78,87 @@ export function setGameSpeed(factor, syncWithServer = true) {
     }
 
     return gameSpeedFactor;
+}
+
+function resolveTargetPos(target) {
+    if (target && typeof target.x === 'number' && typeof target.y === 'number') {
+        const w = target.width || 0;
+        const h = target.height || 0;
+        return { x: target.x + w / 2, y: target.y + h / 2 };
+    }
+    return { x: mainCanvas.width / 2, y: mainCanvas.height / 2 };
+}
+
+export function setCameraZoom(zoomFactor = 1, target = null, duration = 500) {
+    const clamped = Math.max(1, zoomFactor);
+    cameraState.startZoom = cameraState.currentZoom || 1;
+    cameraState.targetZoom = clamped;
+    cameraState.elapsed = 0;
+    cameraState.duration = Math.max(200, duration);
+    cameraState.target = target || null;
+
+    const centerPos = resolveTargetPos(null);
+    const desiredPos = resolveTargetPos(target);
+
+    if (zoomFactor > 1) {
+        // zoom in: center -> target
+        cameraState.startPos = centerPos;
+        cameraState.targetPos = desiredPos;
+    } else {
+        // zoom out: from current toward center
+        const fromPos = cameraState.currentPos || desiredPos || centerPos;
+        cameraState.startPos = fromPos;
+        cameraState.targetPos = centerPos;
+    }
+
+    if (!cameraState.currentPos) {
+        cameraState.currentPos = cameraState.startPos;
+    }
+}
+
+export function refreshCameraTarget(target) {
+    if (!target) return;
+    cameraState.target = target;
+    const desiredPos = resolveTargetPos(target);
+    cameraState.targetPos = desiredPos;
+    if (cameraState.elapsed >= cameraState.duration && cameraState.currentZoom === cameraState.targetZoom) {
+        cameraState.currentPos = desiredPos;
+    }
+}
+
+export function getCameraZoom() {
+    return {
+        zoom: cameraState.currentZoom,
+        target: cameraState.target,
+        targetPos: cameraState.currentPos
+    };
+}
+
+export function updateCameraZoom(deltaTime) {
+    if (cameraState.currentZoom === undefined) {
+        cameraState.currentZoom = 1;
+    }
+    if (cameraState.elapsed >= cameraState.duration && cameraState.currentZoom === cameraState.targetZoom) {
+        return;
+    }
+
+    cameraState.elapsed += deltaTime;
+    const t = Math.min(1, cameraState.elapsed / cameraState.duration);
+    const eased = t * t * (3 - 2 * t); // smoothstep
+    cameraState.currentZoom = cameraState.startZoom + (cameraState.targetZoom - cameraState.startZoom) * eased;
+    if (cameraState.startPos && cameraState.targetPos) {
+        const sx = cameraState.startPos.x;
+        const sy = cameraState.startPos.y;
+        const tx = cameraState.targetPos.x;
+        const ty = cameraState.targetPos.y;
+        cameraState.currentPos = {
+            x: sx + (tx - sx) * eased,
+            y: sy + (ty - sy) * eased
+        };
+        if (t === 1) {
+            cameraState.currentPos = { ...cameraState.targetPos };
+        }
+    }
 }
 
 export async function loadGameSpeed() {
@@ -113,21 +208,78 @@ export function getSpawnPoint(teamId) {
     return spawnPoints.get(teamId);
 }
 
+function reportRuntimeIssue(filename, message, isError = false, target = null) {
+    try {
+        if (!reportValidationIssuePromise) {
+            reportValidationIssuePromise = import('./socketManager.js')
+                .then(module => module.reportValidationIssue)
+                .catch(error => {
+                    console.error('Error loading validation reporter:', error);
+                    return null;
+                });
+        }
+
+        reportValidationIssuePromise.then(reporter => {
+            if (!reporter) return;
+
+            const team = target?.teamId ? teamStats.get(target.teamId) : null;
+            const ai = target?.aiId && team?.ais ? team.ais.get(target.aiId) : null;
+
+            reporter(
+                filename,
+                message,
+                isError,
+                {
+                    aiId: target?.aiId || null,
+                    teamId: target?.teamId || null,
+                    aiName: ai?.service || null,
+                    teamName: team?.name || null
+                }
+            );
+        });
+    } catch (error) {
+        console.error('Error reporting runtime issue:', error);
+    }
+}
+
 export function calculateSpawnPoints() {
     const bounds = getBattleAreaBounds();
     const centerX = (bounds.right - bounds.left) / 2 + bounds.left;
     const centerY = (bounds.bottom - bounds.top) / 2 + bounds.top;
     const radius = Math.min(centerX - bounds.left, centerY - bounds.top) * 0.8;
 
-    const teams = Array.from(teamStats.keys());
-    const totalTeams = teams.length;
+    const prioritizedTeams = activeBattleTeams.size > 0
+        ? Array.from(activeBattleTeams)
+        : Array.from(teamStats.keys());
 
-    teams.forEach((teamId, index) => {
-        const angle = (index * 2 * Math.PI / totalTeams) - Math.PI / 2;
+    if (prioritizedTeams.length === 0) {
+        return;
+    }
+
+    prioritizedTeams.forEach((teamId, index) => {
+        const angle = (index * 2 * Math.PI / prioritizedTeams.length) - Math.PI / 2;
         const x = centerX + radius * Math.cos(angle);
         const y = centerY + radius * Math.sin(angle);
         spawnPoints.set(teamId, { x, y });
     });
+}
+
+export function setActiveBattleTeams(teamIds = []) {
+    if (Array.isArray(teamIds) && teamIds.length > 0) {
+        activeBattleTeams = new Set(teamIds.filter(id => id !== undefined && id !== null));
+    } else {
+        activeBattleTeams.clear();
+    }
+    calculateSpawnPoints();
+}
+
+export function getActiveTeamsForDisplay() {
+    if (activeBattleTeams.size > 0) {
+        return Array.from(activeBattleTeams)
+            .map(id => [id, teamStats.get(id)])
+            .filter(([, team]) => !!team);
+    }
+    return Array.from(teamStats.entries());
 }
 
 export function setGameOver(value) {
@@ -166,10 +318,13 @@ export function resetGameState() {
     activeSkills.clear();
     teamStats.clear();
     spawnPoints.clear();
+    activeBattleTeams.clear();
     terrainEffects.clear();
     nextId = 0;
     isInitialized = false;
     selectedUnit = null;
+    cameraState.zoom = 1;
+    cameraState.target = null;
 
     if (mainCanvas.parentNode) {
         mainCanvas.parentNode.removeChild(mainCanvas);
@@ -178,6 +333,9 @@ export function resetGameState() {
 
 export function clearGameErrors() {
     activeErrors.length = 0;
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('errorsCleared'));
+    }
 }
 
 export function initGame() {
@@ -211,7 +369,11 @@ export function killUnit(target) {
         }
     }
 
-    playDeathSound(unitData);
+    playDeathSound(unitData, {
+        aiId: target.aiId,
+        teamId: target.teamId,
+        unitType: target.type
+    });
 
     removeGameObject(target.id);
 }
@@ -245,11 +407,13 @@ function handleCanvasClick(event) {
 }
 
 function handleDocumentClick(event) {
-    if (!event.target.closest('.unit-tooltip')) {
-        selectedUnit = null;
-        window.dispatchEvent(new CustomEvent('hideUnitTooltip'));
-    }
+    // Auto-close functionality removed as per user request
 }
+
+window.addEventListener('deselectUnit', () => {
+    selectedUnit = null;
+    window.dispatchEvent(new CustomEvent('hideUnitTooltip'));
+});
 
 export function getNextId() {
     return nextId++;
@@ -894,138 +1058,150 @@ export function processEffects(target, deltaTime) {
     if (!target.activeEffects) return;
 
     const currentTime = Date.now();
-    const adjustedDeltaTime = deltaTime * gameSpeedFactor;
 
     for (const [effectId, effect] of target.activeEffects.entries()) {
-        if (!effect.startTime) {
-            effect.startTime = currentTime;
-            effect.lastPulse = currentTime;
-        }
-
-        if (effect.duration && effect.duration !== -1) {
-            const timeRunning = (currentTime - effect.startTime) * gameSpeedFactor;
-
-            if (timeRunning >= effect.duration) {
-                if (effect.cleanup) {
-                    try {
-                        effect.cleanup();
-                    } catch (error) {
-                        console.warn("Error executing cleanup function:", error);
-                    }
-                }
-
-                if (effect.continuousEffect) {
-                    try {
-                        if (typeof effect.continuousEffect === 'function') {
-                            effect.continuousEffect();
-                        }
-                    } catch (error) {
-                        console.warn("Error cleaning up continuous effect:", error);
-                    }
-                }
-
-                if (effect.sourceContinuousEffect) {
-                    try {
-                        if (typeof effect.sourceContinuousEffect === 'function') {
-                            effect.sourceContinuousEffect();
-                        }
-                    } catch (error) {
-                        console.warn("Error cleaning up source continuous effect:", error);
-                    }
-                }
-
-                const fxSource = effect.targetFx || {};
-                if (fxSource.end) {
-                    try {
-                        const endEffect = getEffect(fxSource.end);
-                        if (endEffect) {
-                            endEffect(target);
-                        }
-                    } catch (error) {
-                        console.warn(`Error applying end effect ${fxSource.end}:`, error);
-                    }
-                }
-
-                const sourceFxSource = effect.sourceFx || {};
-                if (sourceFxSource.end) {
-                    try {
-                        const endEffect = getEffect(sourceFxSource.end);
-                        if (endEffect) {
-                            endEffect(target);
-                        }
-                    } catch (error) {
-                        console.warn(`Error applying end effect ${sourceFxSource.end}:`, error);
-                    }
-                }
-
-                target.activeEffects.delete(effectId);
-                continue;
-            }
-        }
-
-        if (effect.pulseInterval && (effect.damageAmount || effect.healAmount)) {
-            const timeSinceLastPulse = (currentTime - effect.lastPulse) * gameSpeedFactor;
-            if (timeSinceLastPulse >= effect.pulseInterval) {
-                if (effect.damageAmount) {
-                    const oldHealth = target.health;
-                    target.health = Math.max(0, target.health - effect.damageAmount);
-
-                    if (effect.pulseFx) {
-                        try {
-                            const pulseEffect = getEffect(effect.pulseFx);
-                            if (pulseEffect) {
-                                pulseEffect(target, { damage: effect.damageAmount });
-                            }
-                        } catch (error) {
-                            console.warn(`Error applying pulse effect ${effect.pulseFx}:`, error);
-                        }
-                    }
-
-                    const healthDiff = oldHealth - target.health;
-                    if (target.teamId && healthDiff > 0) {
-                        const team = teamStats.get(target.teamId);
-                        if (team) {
-                            team.currentHealth = Math.max(0, team.currentHealth - healthDiff);
-                            if (target.aiId && team.ais.has(target.aiId)) {
-                                const ai = team.ais.get(target.aiId);
-                                ai.currentHealth = Math.max(0, ai.currentHealth - healthDiff);
-                            }
-                        }
-                    }
-
-                    if (target.health <= 0) {
-                        killUnit(target);
-                        return;
-                    }
-                } else if (effect.healAmount) {
-                    const oldHealth = target.health;
-                    target.health = Math.min(target.maxHealth, target.health + effect.healAmount);
-
-                    if (effect.pulseFx) {
-                        try {
-                            const pulseEffect = getEffect(effect.pulseFx);
-                            if (pulseEffect) {
-                                pulseEffect(target);
-                            }
-                        } catch (error) {
-                            console.warn(`Error applying pulse effect ${effect.pulseFx}:`, error);
-                        }
-                    }
-
-                    const healthDiff = target.health - oldHealth;
-                    if (target.teamId && healthDiff > 0) {
-                        const team = teamStats.get(target.teamId);
-                        if (team) {
-                            team.currentHealth = Math.min(team.totalHealth, team.currentHealth + healthDiff);
-                            if (target.aiId && team.ais.has(unit.aiId)) {
-                                const ai = team.ais.get(unit.aiId);
-                                ai.currentHealth = Math.min(ai.totalHealth, ai.currentHealth + healthDiff);
-                            }
-                        }
-                    }
-                }
-
+        try {
+            if (!effect.startTime) {
+                effect.startTime = currentTime;
                 effect.lastPulse = currentTime;
+            }
+
+            if (effect.duration && effect.duration !== -1) {
+                const timeRunning = (currentTime - effect.startTime) * gameSpeedFactor;
+
+                if (timeRunning >= effect.duration) {
+                    if (effect.cleanup) {
+                        try {
+                            effect.cleanup();
+                        } catch (error) {
+                            console.warn("Error executing cleanup function:", error);
+                        }
+                    }
+
+                    if (effect.continuousEffect) {
+                        try {
+                            if (typeof effect.continuousEffect === 'function') {
+                                effect.continuousEffect();
+                            }
+                        } catch (error) {
+                            console.warn("Error cleaning up continuous effect:", error);
+                        }
+                    }
+
+                    if (effect.sourceContinuousEffect) {
+                        try {
+                            if (typeof effect.sourceContinuousEffect === 'function') {
+                                effect.sourceContinuousEffect();
+                            }
+                        } catch (error) {
+                            console.warn("Error cleaning up source continuous effect:", error);
+                        }
+                    }
+
+                    const fxSource = effect.targetFx || {};
+                    if (fxSource.end) {
+                        try {
+                            const endEffect = getEffect(fxSource.end);
+                            if (endEffect) {
+                                endEffect(target);
+                            }
+                        } catch (error) {
+                            console.warn(`Error applying end effect ${fxSource.end}:`, error);
+                        }
+                    }
+
+                    const sourceFxSource = effect.sourceFx || {};
+                    if (sourceFxSource.end) {
+                        try {
+                            const endEffect = getEffect(sourceFxSource.end);
+                            if (endEffect) {
+                                endEffect(target);
+                            }
+                        } catch (error) {
+                            console.warn(`Error applying end effect ${sourceFxSource.end}:`, error);
+                        }
+                    }
+
+                    target.activeEffects.delete(effectId);
+                    continue;
+                }
+            }
+
+            if (effect.pulseInterval && (effect.damageAmount || effect.healAmount)) {
+                const timeSinceLastPulse = (currentTime - effect.lastPulse) * gameSpeedFactor;
+                if (timeSinceLastPulse >= effect.pulseInterval) {
+                    if (effect.damageAmount) {
+                        const oldHealth = target.health;
+                        target.health = Math.max(0, target.health - effect.damageAmount);
+
+                        if (effect.pulseFx) {
+                            try {
+                                const pulseEffect = getEffect(effect.pulseFx);
+                                if (pulseEffect) {
+                                    pulseEffect(target, { damage: effect.damageAmount });
+                                }
+                            } catch (error) {
+                                console.warn(`Error applying pulse effect ${effect.pulseFx}:`, error);
+                            }
+                        }
+
+                        const healthDiff = oldHealth - target.health;
+                        if (target.teamId && healthDiff > 0) {
+                            const team = teamStats.get(target.teamId);
+                            if (team) {
+                                team.currentHealth = Math.max(0, team.currentHealth - healthDiff);
+                                if (target.aiId && team.ais.has(target.aiId)) {
+                                    const ai = team.ais.get(target.aiId);
+                                    ai.currentHealth = Math.max(0, ai.currentHealth - healthDiff);
+                                }
+                            }
+                        }
+
+                        if (target.health <= 0) {
+                            killUnit(target);
+                            return;
+                        }
+                    } else if (effect.healAmount) {
+                        const oldHealth = target.health;
+                        target.health = Math.min(target.maxHealth, target.health + effect.healAmount);
+
+                        if (effect.pulseFx) {
+                            try {
+                                const pulseEffect = getEffect(effect.pulseFx);
+                                if (pulseEffect) {
+                                    pulseEffect(target);
+                                }
+                            } catch (error) {
+                                console.warn(`Error applying pulse effect ${effect.pulseFx}:`, error);
+                            }
+                        }
+
+                        const healthDiff = target.health - oldHealth;
+                        if (target.teamId && healthDiff > 0) {
+                            const team = teamStats.get(target.teamId);
+                            if (team) {
+                                team.currentHealth = Math.min(team.totalHealth, team.currentHealth + healthDiff);
+                                if (target.aiId && team.ais.has(target.aiId)) {
+                                    const ai = team.ais.get(target.aiId);
+                                    ai.currentHealth = Math.min(ai.totalHealth, ai.currentHealth + healthDiff);
+                                }
+                            }
+                        }
+                    }
+
+                    effect.lastPulse = currentTime;
+                }
+            }
+        } catch (error) {
+            console.error('Error processing active effect:', error);
+            reportRuntimeIssue(
+                `runtime-effect-${effectId || 'unknown'}.json`,
+                `Runtime error while processing effect '${effectId || 'unknown'}' for unit '${target?.type || 'unknown'}': ${error.message}`,
+                true,
+                target
+            );
+            if (target?.activeEffects?.has(effectId)) {
+                target.activeEffects.delete(effectId);
             }
         }
     }
@@ -1070,6 +1246,9 @@ export async function processGameUpdates(deltaTime) {
             }
             if (obj.updateProjectiles) {
                 updateOrder.push(() => obj.updateProjectiles(adjustedDeltaTime));
+            }
+            if (obj.updateAnimation) {
+                updateOrder.push(() => obj.updateAnimation(adjustedDeltaTime));
             }
             if (obj.skills) {
                 obj.skills.forEach((skill) => {

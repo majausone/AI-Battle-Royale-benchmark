@@ -4,11 +4,39 @@ import { moveCharacter } from './characterMovement.js';
 import { playSpawnSound } from './audio.js';
 import { getUnitData, getSkill, getEffect } from './unitLoader.js';
 import { applyFX } from './baseSkill.js';
+import { on, EVENTS } from './events.js';
 
 let nextId = 0;
 
 export function clearAllCharacters() {
     gameObjects.clear();
+}
+
+function isValidFrame(frame, width, height) {
+    return Array.isArray(frame) &&
+        frame.length === height &&
+        frame.every(row => Array.isArray(row) && row.length === width);
+}
+
+function getAnimationFrames(unitData) {
+    const baseFrame = Array.isArray(unitData.graphics) && unitData.graphics.length > 0
+        ? unitData.graphics
+        : [[null]];
+
+    const frameWidth = Array.isArray(baseFrame[0]) ? baseFrame[0].length : 1;
+    const frameHeight = baseFrame.length;
+
+    const normalize = (frame) => isValidFrame(frame, frameWidth, frameHeight) ? frame : baseFrame;
+
+    const move1 = normalize(unitData.animationGraphics?.move1);
+    const move2 = normalize(unitData.animationGraphics?.move2);
+    const attackFrame = normalize(unitData.animationGraphics?.attack);
+
+    return {
+        baseFrame,
+        moveFrames: [baseFrame, move1, move2],
+        attackFrame
+    };
 }
 
 function findValidSpawnPosition(spawnPoint, unitWidth, unitHeight, spawnRadius) {
@@ -65,9 +93,11 @@ export async function spawnUnit(unitId, teamId = null, aiId = null, position = n
         return;
     }
 
+    const { baseFrame, moveFrames, attackFrame } = getAnimationFrames(unitData);
+
     const effectiveTeamId = parentUnit ? parentUnit.teamId : teamId;
-    const unitWidth = unitData.graphics[0].length * unitData.scale;
-    const unitHeight = unitData.graphics.length * unitData.scale;
+    const unitWidth = baseFrame[0].length * unitData.scale;
+    const unitHeight = baseFrame.length * unitData.scale;
 
     let spawnPos;
     if (position) {
@@ -80,8 +110,17 @@ export async function spawnUnit(unitId, teamId = null, aiId = null, position = n
 
     const id = `unit-${nextId++}`;
 
+    const initialSprite = drawPixelArt(baseFrame, unitData.scale, spawnPos.x, spawnPos.y);
+    const animationKeys = moveFrames.map((frame, index) => {
+        if (index === 0) return initialSprite.key;
+        return drawPixelArt(frame, unitData.scale, spawnPos.x, spawnPos.y).key;
+    });
+    const attackKey = attackFrame === baseFrame
+        ? initialSprite.key
+        : drawPixelArt(attackFrame, unitData.scale, spawnPos.x, spawnPos.y).key;
+
     const unit = {
-        ...drawPixelArt(unitData.graphics, unitData.scale, spawnPos.x, spawnPos.y),
+        ...initialSprite,
         type: unitId,
         id: id,
         health: unitData.life,
@@ -91,15 +130,54 @@ export async function spawnUnit(unitId, teamId = null, aiId = null, position = n
         scale: unitData.scale,
         width: unitWidth,
         height: unitHeight,
-        graphics: unitData.graphics,
+        graphics: baseFrame,
         teamId: effectiveTeamId,
         aiId: parentUnit ? parentUnit.aiId : aiId,
-        activeEffects: new Map()
+        activeEffects: new Map(),
+        animationState: {
+            moveKeys: animationKeys,
+            attackKey,
+            attackTimer: 0,
+            frameTimer: 0,
+            frameDuration: 200,
+            currentIndex: 0
+        }
     };
 
     addGameObject(id, unit);
+
+    unit.updateAnimation = function(deltaTime) {
+        if (!this.animationState || this.animationState.moveKeys.length === 0) return;
+
+        if (this.animationState.attackTimer > 0) {
+            this.animationState.attackTimer = Math.max(0, this.animationState.attackTimer - deltaTime);
+            this.key = this.animationState.attackKey;
+            return;
+        }
+
+        this.animationState.frameTimer += deltaTime;
+        if (this.animationState.frameTimer >= this.animationState.frameDuration) {
+            this.animationState.frameTimer = 0;
+            this.animationState.currentIndex = (this.animationState.currentIndex + 1) % this.animationState.moveKeys.length;
+            this.key = this.animationState.moveKeys[this.animationState.currentIndex];
+        }
+    };
+
+    unit.triggerAttackAnimation = function() {
+        if (!this.animationState) return;
+        this.animationState.attackTimer = 1000;
+        this.animationState.frameTimer = 0;
+        this.key = this.animationState.attackKey;
+    };
+
+    on(unit, EVENTS.ATTACK, () => unit.triggerAttackAnimation());
+
     moveCharacter(unit, unitData);
-    playSpawnSound(unitData);
+    playSpawnSound(unitData, {
+        aiId: unit.aiId,
+        teamId: unit.teamId,
+        unitType: unit.type
+    });
 
     if (!unit.effects) {
         unit.effects = [];

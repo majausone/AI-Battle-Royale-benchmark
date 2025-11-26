@@ -1,4 +1,5 @@
-import { gameArea, mainCanvas, gameObjects, projectiles, swords, teamStats, getBattleAreaBounds, isInitialized, effects, selectedUnit, getGameSpeed } from './gameState.js';
+import { gameArea, mainCanvas, gameObjects, projectiles, swords, teamStats, getBattleAreaBounds, isInitialized, effects, selectedUnit, getGameSpeed, getActiveTeamsForDisplay, getCameraZoom } from './gameState.js';
+import { renderMapLayer } from './mapManager.js';
 import { CONFIG } from './config.js';
 
 const ctx = mainCanvas.getContext('2d');
@@ -58,8 +59,8 @@ function renderSpawnPoints() {
     const radius = Math.min(centerX - bounds.left, centerY - bounds.top) * 0.8;
     const spawnRadius = Math.min(bounds.right - bounds.left, bounds.bottom - bounds.top) * 0.08;
 
-    const teams = Array.from(teamStats.entries());
-    const totalTeams = teams.length;
+    const teams = getActiveTeamsForDisplay();
+    const totalTeams = teams.length || 1;
 
     teams.forEach(([teamId, team], index) => {
         const angle = (index * 2 * Math.PI / totalTeams) - Math.PI / 2;
@@ -127,12 +128,20 @@ export function createSword(kewoX, kewoY, targetX, targetY, swordGraphics) {
     const startAngle = angle - Math.PI / 3;
     const swingTime = 400;
 
+    const width = typeof swordGraphics?.width === 'number' && swordGraphics.width > 0
+        ? swordGraphics.width
+        : 20;
+    const height = typeof swordGraphics?.height === 'number' && swordGraphics.height > 0
+        ? swordGraphics.height
+        : 40;
+    const color = swordGraphics?.color || '#ffffff';
+
     return {
         x: kewoX,
         y: kewoY,
-        width: swordGraphics.width,
-        height: swordGraphics.height,
-        color: swordGraphics.color,
+        width,
+        height,
+        color,
         angle: startAngle,
         targetAngle: angle + Math.PI / 3,
         timestamp: performance.now(),
@@ -165,7 +174,7 @@ function renderUnit(unit) {
     if (!sprite) return;
 
     ctx.save();
-    
+
     if (selectedUnit && selectedUnit.id === unit.id) {
         ctx.shadowColor = '#4CAF50';
         ctx.shadowBlur = 10;
@@ -173,7 +182,7 @@ function renderUnit(unit) {
         ctx.lineWidth = 2;
         ctx.strokeRect(unit.x - 2, unit.y - 2, unit.width + 4, unit.height + 4);
     }
-    
+
     ctx.translate(Math.floor(unit.x), Math.floor(unit.y));
     ctx.drawImage(sprite, 0, 0);
 
@@ -186,6 +195,11 @@ function renderUnit(unit) {
         if (team) {
             ctx.fillStyle = team.color;
             ctx.fillRect(-8, -10, 6, healthBarHeight);
+
+            ctx.font = '10px Arial';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.textAlign = 'center';
+            ctx.fillText(team.name, unit.width / 2, -15);
         }
     }
 
@@ -261,8 +275,29 @@ function renderEffects() {
 export function render() {
     if (!isInitialized) return;
 
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
 
+    const { zoom, target, targetPos } = getCameraZoom();
+    const effectiveZoom = Math.max(1, zoom || 1);
+    let targetX = mainCanvas.width / 2;
+    let targetY = mainCanvas.height / 2;
+    if (targetPos && typeof targetPos.x === 'number' && typeof targetPos.y === 'number') {
+        targetX = targetPos.x;
+        targetY = targetPos.y;
+    } else if (target && gameObjects.has(target.id)) {
+        targetX = target.x + target.width / 2;
+        targetY = target.y + target.height / 2;
+    }
+
+    ctx.save();
+    if (effectiveZoom > 1) {
+        ctx.translate(mainCanvas.width / 2, mainCanvas.height / 2);
+        ctx.scale(effectiveZoom, effectiveZoom);
+        ctx.translate(-targetX, -targetY);
+    }
+
+    renderMapLayer(ctx);
     renderBattleArea();
     renderSpawnPoints();
     trails.forEach(renderTrail);
@@ -272,4 +307,6 @@ export function render() {
     });
     swords.forEach(renderSword);
     renderEffects();
+
+    ctx.restore();
 }

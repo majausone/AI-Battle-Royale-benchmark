@@ -1,8 +1,9 @@
 import { clearAllCharacters } from './characters.js';
 import { initializeCanvas, render } from './render.js';
-import { updateUI } from './ui.js';
+import { updateUI, clearUI } from './ui.js';
 import * as gameState from './gameState.js';
 import { matchProcessPopup } from './matchProcessPopup.js';
+import { finalSummaryPopup } from './finalSummaryPopup.js';
 import { requestUnitsForTeams } from './aiRequestUnits.js';
 import { adaptUnitPrices } from './aiPrices.js';
 import { buyUnitsForTeams } from './aiBuy.js';
@@ -14,12 +15,15 @@ let isWaitingForRequests = false;
 let currentMatchId = null;
 let pendingSpawn = null;
 let checkRoundInterval = null;
+let eliminationOrder = [];
+let lastAliveTeams = new Set();
 
 window.currentMatchId = null;
 
-async function loadConfig() {
+async function loadConfig(matchId = null) {
     try {
-        const response = await fetch('/api/config2');
+        const query = matchId ? `?matchId=${matchId}` : '';
+        const response = await fetch(`/api/config2${query}`);
         return await response.json();
     } catch (error) {
         console.error('Error loading config:', error);
@@ -27,14 +31,15 @@ async function loadConfig() {
     }
 }
 
-async function saveRoundData(data) {
+async function saveRoundData(data, matchId = null) {
     try {
+        const payload = matchId ? { ...data, matchId } : data;
         const response = await fetch('/api/config2/round', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(payload)
         });
         return response.ok;
     } catch (error) {
@@ -153,6 +158,7 @@ async function addParticipantsToMatch(matchId, teams) {
 function cleanupRound() {
     clearAllCharacters();
     gameState.resetGameState();
+    clearUI();
 }
 
 function checkTeamAlive(teamId) {
@@ -197,9 +203,8 @@ async function waitForPurchasedUnits(config) {
         }
 
         await new Promise(resolve => setTimeout(resolve, 500));
-        const newConfigResponse = await fetch('/api/config2');
-        if (newConfigResponse.ok) {
-            const newConfig = await newConfigResponse.json();
+        const newConfig = await loadConfig(currentMatchId);
+        if (newConfig?.teams) {
             config.teams = newConfig.teams;
         }
         attempts++;
@@ -224,19 +229,18 @@ async function executeFullRound(gameState, initTeams, spawnUnits, isFirstRound =
             matchProcessPopup.show(currentMatchId);
         }
 
-        const configResponse = await fetch('/api/config2');
-        if (!configResponse.ok) {
+        const config = await loadConfig(currentMatchId);
+        if (!config) {
             throw new Error('Error loading configuration');
         }
-
-        const config = await configResponse.json();
         if (!config || config.currentRound > config.gameSettings.numRounds) {
             autoPlayTimeout = null;
             return;
         }
 
         if (currentMatchId && config.teams) {
-            const participantsResult = await addParticipantsToMatch(currentMatchId, config.teams);
+            const availableTeams = config.teams.filter(team => team.isAvailable === true);
+            const participantsResult = await addParticipantsToMatch(currentMatchId, availableTeams);
             if (!participantsResult.success) {
                 console.error('Failed to add participants:', participantsResult.error);
             }
@@ -336,19 +340,38 @@ function startBattle() {
         
         spawnUnits(teams);
         
+        eliminationOrder = [];
+        lastAliveTeams = new Set();
+        gameState.gameObjects.forEach(obj => {
+            if (obj.teamId) {
+                lastAliveTeams.add(obj.teamId);
+            }
+        });
+        
         if (checkRoundInterval) {
             clearInterval(checkRoundInterval);
         }
         
         checkRoundInterval = setInterval(() => {
-            const teamIds = new Set();
+            const currentAliveTeams = new Set();
             gameState.gameObjects.forEach(obj => {
                 if (obj.teamId) {
-                    teamIds.add(obj.teamId);
+                    currentAliveTeams.add(obj.teamId);
                 }
             });
 
-            if (teamIds.size <= 1) {
+            lastAliveTeams.forEach(teamId => {
+                if (!currentAliveTeams.has(teamId)) {
+                    eliminationOrder.push({
+                        teamId: teamId,
+                        timestamp: Date.now()
+                    });
+                }
+            });
+
+            lastAliveTeams = currentAliveTeams;
+
+            if (currentAliveTeams.size <= 1) {
                 clearInterval(checkRoundInterval);
                 checkRoundInterval = null;
                 handleRoundEnd(gameState, initTeams, spawnUnits);
@@ -423,14 +446,29 @@ async function clearAIUnits() {
     }
 }
 
+async function deleteMatchFiles(matchId) {
+    try {
+        const response = await fetch(`/api/stats/match/${matchId}/delete-only-files`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Failed to delete match files: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('Match files deleted successfully:', result);
+        return true;
+    } catch (error) {
+        console.error('Error deleting match files:', error);
+        return false;
+    }
+}
+
 async function handleRoundEnd(gameState, initTeams, spawnUnits) {
     try {
-        const configResponse = await fetch('/api/config2');
-        if (!configResponse.ok) {
-            throw new Error('Error loading configuration');
-        }
-
-        const config = await configResponse.json();
+        const config = await loadConfig(currentMatchId);
+        if (!config) return;
         if (!config) return;
 
         const aliveTeams = getAliveTeams();
@@ -446,6 +484,32 @@ async function handleRoundEnd(gameState, initTeams, spawnUnits) {
             }
 
             config.roundWins[winningTeamId]++;
+
+            if (!config.teamPositions) {
+                config.teamPositions = {};
+            }
+
+            const availableTeams = config.teams.filter(team => team.isAvailable !== false);
+            availableTeams.forEach(team => {
+                if (!config.teamPositions[team.id]) {
+                    config.teamPositions[team.id] = [];
+                }
+            });
+
+            const roundPositions = {};
+            roundPositions[winningTeamId] = 1;
+
+            let position = 2;
+            for (let i = eliminationOrder.length - 1; i >= 0; i--) {
+                const teamId = eliminationOrder[i].teamId;
+                roundPositions[teamId] = position;
+                position++;
+            }
+
+            availableTeams.forEach(team => {
+                const pos = roundPositions[team.id] || position;
+                config.teamPositions[team.id].push(pos);
+            });
 
             if (currentMatchId) {
                 const winsResponse = await fetch('/api/round-wins');
@@ -530,18 +594,20 @@ async function handleRoundEnd(gameState, initTeams, spawnUnits) {
             await saveRoundData({
                 currentRound: config.currentRound,
                 roundHistory: config.roundHistory,
-                roundWins: config.roundWins
-            });
+                roundWins: config.roundWins,
+                teamPositions: config.teamPositions
+            }, currentMatchId);
 
             if (config.currentRound >= config.gameSettings.numRounds) {
-                handleGameEnd(config);
+                await handleGameEnd(config);
             } else {
                 config.currentRound++;
                 await saveRoundData({
                     currentRound: config.currentRound,
                     roundHistory: config.roundHistory,
-                    roundWins: config.roundWins
-                });
+                    roundWins: config.roundWins,
+                    teamPositions: config.teamPositions
+                }, currentMatchId);
                 window.dispatchEvent(new CustomEvent('roundEnded', {
                     detail: {
                         winner: winningTeamId,
@@ -549,9 +615,12 @@ async function handleRoundEnd(gameState, initTeams, spawnUnits) {
                     }
                 }));
 
+                const autoMode = matchProcessPopup.autoMode;
+                const delay = autoMode ? 1000 : 3000;
+
                 setTimeout(() => {
                     executeFullRound(gameState, initTeams, spawnUnits, false, currentMatchId);
-                }, 3000);
+                }, delay);
             }
         }
     } catch (error) {
@@ -563,61 +632,137 @@ async function handleGameEnd(config) {
     cleanupRound();
 
     try {
+        const isCleanMode = matchProcessPopup.getCleanMode();
+
+        if (isCleanMode && currentMatchId) {
+            await deleteMatchFiles(currentMatchId);
+        }
+
+        const matchIssues = {};
+        if (currentMatchId) {
+            try {
+                const matchStatsResponse = await fetch(`/api/stats/match/${currentMatchId}`);
+                if (matchStatsResponse.ok) {
+                    const matchData = await matchStatsResponse.json();
+
+                    if (Array.isArray(matchData.participants)) {
+                        matchData.participants.forEach(participant => {
+                            const aiId = participant.ai_id;
+                            const issues = (participant.has_errors || 0) * 4 + (participant.has_warnings || 0);
+                            if (!matchIssues[aiId]) {
+                                matchIssues[aiId] = 0;
+                            }
+                            matchIssues[aiId] += issues;
+                        });
+                    } else if (Array.isArray(matchData.responses)) { // Fallback legacy
+                        matchData.responses.forEach(response => {
+                            const aiId = response.ai_id;
+                            const issues = (response.has_errors || 0) * 4 + (response.has_warnings || 0);
+                            if (!matchIssues[aiId]) {
+                                matchIssues[aiId] = 0;
+                            }
+                            matchIssues[aiId] += issues;
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching match issues:', error);
+            }
+        }
+
+        const availableTeams = config.teams.filter(team => team.isAvailable !== false);
+        const ranking = [];
+
+        for (const team of availableTeams) {
+            const positionSum = (config.teamPositions && config.teamPositions[team.id]) 
+                ? config.teamPositions[team.id].reduce((a, b) => a + b, 0) 
+                : 0;
+
+            let teamIssues = 0;
+            team.ais.forEach(ai => {
+                if (matchIssues[ai.id]) {
+                    teamIssues += matchIssues[ai.id];
+                }
+            });
+
+            ranking.push({
+                teamId: team.id,
+                teamName: team.name,
+                teamColor: team.color,
+                positionSum: positionSum,
+                issues: teamIssues,
+                wins: (config.roundWins && config.roundWins[team.id]) ? config.roundWins[team.id] : 0
+            });
+        }
+
+        ranking.sort((a, b) => {
+            if (a.wins !== b.wins) {
+                return b.wins - a.wins;
+            }
+            if (a.positionSum !== b.positionSum) {
+                return a.positionSum - b.positionSum;
+            }
+            return a.issues - b.issues;
+        });
+
+        ranking.forEach((item, index) => {
+            item.rank = index + 1;
+        });
+
         const winners = Object.entries(config.roundWins)
             .sort(([, a], [, b]) => b - a);
 
+        let winnerTeamName = null;
+        let winnerTeamId = null;
+        let isDraw = false;
+
         if (winners.length === 0) {
-            window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
-                detail: {
-                    type: 'gameDraw',
-                    matchId: currentMatchId
-                }
-            }));
+            isDraw = true;
         } else {
             const maxWins = winners[0][1];
             const topWinners = winners.filter(([, wins]) => wins === maxWins);
 
             if (topWinners.length > 1) {
-                window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
-                    detail: {
-                        type: 'gameDraw',
-                        matchId: currentMatchId
-                    }
-                }));
+                isDraw = true;
             } else {
-                const winningTeamId = parseInt(topWinners[0][0]);
-                const winningTeam = config.teams.find(t => t.id === winningTeamId);
-                
-                window.dispatchEvent(new CustomEvent('matchProcessUpdate', {
-                    detail: {
-                        type: 'gameWin',
-                        winner: winningTeam.name,
-                        wins: maxWins,
-                        matchId: currentMatchId
-                    }
-                }));
-
-                if (currentMatchId) {
-                    await updateMatchWithWinner(currentMatchId, winningTeamId);
+                winnerTeamId = parseInt(topWinners[0][0]);
+                const winningTeam = config.teams.find(t => t.id === winnerTeamId);
+                if (winningTeam) {
+                    winnerTeamName = winningTeam.name;
                 }
             }
         }
 
-        setTimeout(() => {
-            matchProcessPopup.hide();
-        }, 5000);
+        let summaryData = {
+            winner: winnerTeamName,
+            winnerTeam: winnerTeamName,
+            totalRounds: config.gameSettings.numRounds,
+            isDraw: isDraw,
+            isCleanMode: isCleanMode,
+            ranking: ranking
+        };
+
+        if (!isDraw && currentMatchId && winnerTeamId) {
+            await updateMatchWithWinner(currentMatchId, winnerTeamId);
+        }
+
+        matchProcessPopup.hide();
+        await new Promise(resolve => setTimeout(resolve, 500));
+        finalSummaryPopup.show(summaryData);
 
         await clearAIUnits();
 
         config.currentRound = 1;
         config.roundHistory = [];
         config.roundWins = {};
+        config.teamPositions = {};
 
         await saveRoundData({
             currentRound: config.currentRound,
             roundHistory: config.roundHistory,
-            roundWins: config.roundWins
-        });
+            roundWins: config.roundWins,
+            teamPositions: config.teamPositions
+        }, currentMatchId);
 
         await clearRoundHistory();
         await clearRoundWins();
@@ -644,12 +789,7 @@ async function handleGameEnd(config) {
 
 async function startNextRound() {
     try {
-        const configResponse = await fetch('/api/config2');
-        if (!configResponse.ok) {
-            throw new Error('Error loading configuration');
-        }
-
-        const config = await configResponse.json();
+        const config = await loadConfig(currentMatchId);
         if (!config) return;
 
         cleanupRound();
@@ -657,8 +797,9 @@ async function startNextRound() {
         await saveRoundData({
             currentRound: config.currentRound,
             roundHistory: config.roundHistory,
-            roundWins: config.roundWins
-        });
+            roundWins: config.roundWins,
+            teamPositions: config.teamPositions || {}
+        }, currentMatchId);
 
         window.dispatchEvent(new CustomEvent('roundStarted', {
             detail: {
@@ -672,12 +813,7 @@ async function startNextRound() {
 
 async function initializeNewGame() {
     try {
-        const configResponse = await fetch('/api/config2');
-        if (!configResponse.ok) {
-            throw new Error('Error loading configuration');
-        }
-
-        const config = await configResponse.json();
+        const config = await loadConfig(currentMatchId);
         if (!config) return;
 
         cleanupRound();
@@ -689,6 +825,7 @@ async function initializeNewGame() {
         config.currentRound = 1;
         config.roundHistory = [];
         config.roundWins = {};
+        config.teamPositions = {};
         
         clearValidationCache();
         currentMatchId = null;
@@ -697,8 +834,9 @@ async function initializeNewGame() {
         await saveRoundData({
             currentRound: config.currentRound,
             roundHistory: config.roundHistory,
-            roundWins: config.roundWins
-        });
+            roundWins: config.roundWins,
+            teamPositions: config.teamPositions
+        }, currentMatchId);
 
         await clearRoundHistory();
         await clearRoundWins();

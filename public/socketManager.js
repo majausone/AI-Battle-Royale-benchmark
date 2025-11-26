@@ -19,6 +19,9 @@ export function initSocket() {
     });
 
     socket.on('requestStatus', (data) => {
+        if (data.matchId) {
+            window.currentMatchId = data.matchId;
+        }
         let statusMessage = '';
         
         if (data.status === 'started') {
@@ -44,7 +47,10 @@ export function initSocket() {
                 teamId: data.teamId,
                 aiId: data.aiId,
                 teamName: data.teamName,
-                status: data.status
+                status: data.status,
+                durationSeconds: data.durationSeconds,
+                expectedUnits: data.expectedUnits,
+                receivedUnits: data.receivedUnits
             }
         }));
         
@@ -67,6 +73,30 @@ export function initSocket() {
                 console.error('Error in requestStatus handler:', error);
             }
         });
+
+        if (data.validationIssues && Array.isArray(data.validationIssues)) {
+            data.validationIssues.forEach(issue => {
+                reportValidationIssue(
+                    issue.filename,
+                    issue.message,
+                    issue.isError,
+                    {
+                        aiId: issue.aiId,
+                        teamId: issue.teamId,
+                        aiName: issue.aiName,
+                        teamName: issue.teamName,
+                        matchId: issue.matchId,
+                        alreadyPersisted: issue.alreadyPersisted === true
+                    },
+                    {
+                        warningIncrement: issue.warningIncrement,
+                        errorIncrement: issue.errorIncrement
+                    }
+                ).catch(error => {
+                    console.error('Error reporting validation issue from socket event:', error);
+                });
+            });
+        }
     });
 
     socket.on('apiError', (data) => {
@@ -193,6 +223,8 @@ async function getAIAndTeamInfo(matchId, filename) {
         
         let ai = 'Unknown AI';
         let team = 'Unknown Team';
+        let aiId = null;
+        let teamId = null;
         
         if (matchDetails && matchDetails.files && matchDetails.participants) {
             const fileInfo = matchDetails.files.find(file => file.filename === filename);
@@ -201,19 +233,27 @@ async function getAIAndTeamInfo(matchId, filename) {
                 const participant = matchDetails.participants.find(p => p.ai_id === fileInfo.ai_id);
                 
                 if (participant) {
+                    aiId = participant.ai_id || fileInfo.ai_id;
+                    teamId = participant.team_id || null;
                     const servicessResponse = await fetch('/api/config2');
                     const config = await servicessResponse.json();
+                    const serviceId = participant.service_id;
+                    const participantServiceType = participant.service_type;
+                    const participantServiceName = participant.service_name;
                     
                     if (config && config.aiServices) {
-                        const service = config.aiServices.find(s => s.type === participant.service_type);
+                        const service = config.aiServices.find(s => s.service_id === serviceId) ||
+                                        config.aiServices.find(s => s.type === participantServiceType);
                         if (service) {
-                            ai = service.name || service.type;
+                            ai = service.name || service.model || service.type;
                         } else {
-                            ai = participant.service_type;
+                            ai = participantServiceName || participantServiceType;
                         }
                     } else {
-                        ai = participant.service_type;
+                        ai = participantServiceName || participantServiceType;
                     }
+                    
+                    team = participant.team_name || team;
                     
                     if (config && config.teams) {
                         for (const teamObj of config.teams) {
@@ -228,69 +268,161 @@ async function getAIAndTeamInfo(matchId, filename) {
             }
         }
         
-        return { ai, team };
+        return { ai, team, aiId, teamId };
     } catch (error) {
         console.error('Error getting AI and team info:', error);
-        return { ai: 'Unknown AI', team: 'Unknown Team' };
+        return { ai: 'Unknown AI', team: 'Unknown Team', aiId: null, teamId: null };
     }
 }
 
-export async function reportValidationIssue(filename, message, isError = false) {
+export async function reportValidationIssue(filename, message, isError = false, metadata = {}, increments = {}) {
     if (!socket) {
         initSocket();
     }
 
-    const currentMatchId = window.currentMatchId;
+    const currentMatchId = (metadata && metadata.matchId) ? metadata.matchId : window.currentMatchId;
 
     if (!currentMatchId) {
         console.log('[ValidationLog] No matchId available, validation issue not reported');
-        return;
+        return null;
     }
 
-    const uniqueId = `${currentMatchId}:${filename}:${message}`;
+    const {
+        aiId,
+        teamId,
+        aiName,
+        teamName,
+        alreadyPersisted: metaAlreadyPersisted,
+        warningIncrement: metaWarningIncrement,
+        errorIncrement: metaErrorIncrement
+    } = metadata || {};
 
-    if (validationIssuesCache.has(uniqueId)) return;
+    const shouldSendToServer = !metaAlreadyPersisted;
 
+    const warningIncrement = increments.warningIncrement ?? metaWarningIncrement ?? (isError ? 0 : 1);
+    const errorIncrement = increments.errorIncrement ?? metaErrorIncrement ?? (isError ? 1 : 0);
+
+    let resolvedAiName = aiName || null;
+    let resolvedTeamName = teamName || null;
+    let resolvedAiId = aiId || null;
+    let resolvedTeamId = teamId || null;
+
+    if ((!resolvedAiName || !resolvedTeamName || !resolvedAiId || !resolvedTeamId) && filename) {
+        const info = await getAIAndTeamInfo(currentMatchId, filename);
+        resolvedAiName = resolvedAiName || info.ai;
+        resolvedTeamName = resolvedTeamName || info.team;
+        if (!resolvedAiId && info.aiId) {
+            resolvedAiId = info.aiId;
+        }
+        if (!resolvedTeamId && info.teamId) {
+            resolvedTeamId = info.teamId;
+        }
+    }
+
+    if (!resolvedAiId) {
+        const errorData = {
+            type: isError ? 'error' : 'warning',
+            time: new Date().toLocaleTimeString(),
+            file: filename,
+            ai: resolvedAiName || 'Unknown AI',
+            team: resolvedTeamName || 'Unknown Team',
+            message,
+            sentToData: false,
+            sendReason: 'AI not resolved'
+        };
+        activeErrors.push(errorData);
+        window.dispatchEvent(new CustomEvent('errorAdded', { detail: errorData }));
+        return {
+            acceptedErrors: 0,
+            acceptedWarnings: 0,
+            error: 'AI not resolved'
+        };
+    }
+
+    const uniqueId = `${currentMatchId}:${filename}:${message}:${resolvedAiId || ''}`;
+    if (validationIssuesCache.has(uniqueId)) return null;
     validationIssuesCache.add(uniqueId);
 
-    const { ai, team } = await getAIAndTeamInfo(currentMatchId, filename);
+    const payload = {
+        matchId: currentMatchId,
+        filename,
+        message,
+        isError,
+        errorIncrement,
+        warningIncrement,
+        aiId: resolvedAiId || null,
+        teamId: resolvedTeamId || null
+    };
+
+    let sentToData = false;
+    let sendReason = null;
+    let response = {};
+
+    if (shouldSendToServer) {
+        const sendWithAck = () => new Promise((resolve) => {
+            const emitPayload = () => {
+                const timeout = setTimeout(() => resolve({ timeout: true }), 2000);
+                socket.emit('validation_issue', payload, (resp = {}) => {
+                    clearTimeout(timeout);
+                    resolve(resp || {});
+                });
+            };
+
+            if (socket.connected) {
+                emitPayload();
+            } else {
+                const onConnect = () => {
+                    emitPayload();
+                    socket.off('connect', onConnect);
+                };
+                socket.on('connect', onConnect);
+            }
+        });
+
+        response = await sendWithAck().catch(() => ({ timeout: true }));
+        const acceptedErrors = response?.acceptedErrors || 0;
+        const acceptedWarnings = response?.acceptedWarnings || 0;
+        const rowsChanged = response?.rowsChanged || 0;
+        const updatedMatchId = response?.updatedMatchId ?? null;
+        sentToData = (acceptedErrors > 0 || acceptedWarnings > 0) && rowsChanged > 0 && updatedMatchId === currentMatchId;
+
+        if (!sentToData) {
+            if (response?.timeout) {
+                sendReason = 'No ack from server (timeout)';
+            } else if (response?.error) {
+                sendReason = response.error;
+            } else if (response?.reason) {
+                sendReason = response.reason;
+            } else if (response?.remainingIssueWeight === 0) {
+                sendReason = 'Issue cap reached (30 weighted)';
+            } else if (updatedMatchId !== null && updatedMatchId !== currentMatchId) {
+                sendReason = `Mismatch matchId (ack ${updatedMatchId}, current ${currentMatchId})`;
+            } else if (rowsChanged === 0) {
+                sendReason = 'Not persisted (no DB row updated)';
+            } else {
+                sendReason = 'Not persisted (unknown reason)';
+            }
+            validationIssuesCache.delete(uniqueId);
+        }
+    } else {
+        sentToData = true;
+    }
 
     const errorData = {
         type: isError ? 'error' : 'warning',
         time: new Date().toLocaleTimeString(),
         file: filename,
-        ai: ai,
-        team: team,
-        message: message
+        ai: resolvedAiName || 'Unknown AI',
+        team: resolvedTeamName || 'Unknown Team',
+        message: message,
+        sentToData,
+        sendReason
     };
 
     activeErrors.push(errorData);
-
     window.dispatchEvent(new CustomEvent('errorAdded', { detail: errorData }));
 
-    if (socket.connected) {
-        socket.emit('validation_issue', {
-            matchId: currentMatchId,
-            filename: filename,
-            message: message,
-            isError: isError,
-            errorIncrement: isError ? 1 : 0,
-            warningIncrement: isError ? 0 : 1
-        });
-    } else {
-        const onConnect = () => {
-            socket.emit('validation_issue', {
-                matchId: currentMatchId,
-                filename: filename,
-                message: message,
-                isError: isError,
-                errorIncrement: isError ? 1 : 0,
-                warningIncrement: isError ? 0 : 1
-            });
-            socket.off('connect', onConnect);
-        };
-        socket.on('connect', onConnect);
-    }
+    return response;
 }
 
 export function clearValidationCache() {

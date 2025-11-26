@@ -10,6 +10,7 @@ export class MatchProcessPopup {
                 logs: [],
                 expanded: false,
                 details: {},
+                aiStats: new Map(),
                 element: null,
                 logsContainer: null,
                 lastLogCount: 0,
@@ -23,6 +24,7 @@ export class MatchProcessPopup {
                 logs: [],
                 expanded: false,
                 details: {},
+                aiStats: new Map(),
                 element: null,
                 logsContainer: null,
                 lastLogCount: 0,
@@ -36,6 +38,7 @@ export class MatchProcessPopup {
                 logs: [],
                 expanded: false,
                 details: {},
+                aiStats: new Map(),
                 element: null,
                 logsContainer: null,
                 lastLogCount: 0,
@@ -58,12 +61,30 @@ export class MatchProcessPopup {
         this.acceptButton = null;
         this.battleReady = false;
         this.isActiveButHidden = false;
+        this.autoMode = false;
+        this.cleanMode = false;
+        this.processStarted = false;
+        this.startButton = null;
+        this.startProcessCallback = null;
         this.resultElements = {
             roundWin: null,
             gameWin: null,
             gameDraw: null
         };
         this.init();
+    }
+
+    formatDuration(seconds) {
+        if (seconds === null || seconds === undefined || Number.isNaN(seconds)) {
+            return '...';
+        }
+        const totalSeconds = Math.max(0, Number(seconds));
+        if (totalSeconds < 60) {
+            return `${totalSeconds.toFixed(1)}s`;
+        }
+        const minutes = Math.floor(totalSeconds / 60);
+        const remaining = (totalSeconds - minutes * 60).toFixed(1);
+        return `${minutes}m ${remaining}s`;
     }
 
     init() {
@@ -73,6 +94,48 @@ export class MatchProcessPopup {
         
         const content = document.createElement('div');
         content.className = 'match-process-content';
+        
+        const controls = document.createElement('div');
+        controls.className = 'match-process-controls';
+        
+        const autoCheckbox = document.createElement('div');
+        autoCheckbox.className = 'match-process-checkbox';
+        const autoInput = document.createElement('input');
+        autoInput.type = 'checkbox';
+        autoInput.id = 'auto-mode-checkbox';
+        autoInput.addEventListener('change', (e) => {
+            this.autoMode = e.target.checked;
+        });
+        const autoLabel = document.createElement('label');
+        autoLabel.htmlFor = 'auto-mode-checkbox';
+        autoLabel.textContent = 'Auto';
+        autoCheckbox.appendChild(autoInput);
+        autoCheckbox.appendChild(autoLabel);
+        
+        const cleanCheckbox = document.createElement('div');
+        cleanCheckbox.className = 'match-process-checkbox';
+        const cleanInput = document.createElement('input');
+        cleanInput.type = 'checkbox';
+        cleanInput.id = 'clean-mode-checkbox';
+        cleanInput.addEventListener('change', (e) => {
+            this.cleanMode = e.target.checked;
+        });
+        const cleanLabel = document.createElement('label');
+        cleanLabel.htmlFor = 'clean-mode-checkbox';
+        cleanLabel.textContent = 'Clean';
+        cleanCheckbox.appendChild(cleanInput);
+        cleanCheckbox.appendChild(cleanLabel);
+        
+        this.startButton = document.createElement('button');
+        this.startButton.className = 'match-process-start-btn';
+        this.startButton.textContent = 'Start';
+        this.startButton.addEventListener('click', () => {
+            this.startProcess();
+        });
+        
+        controls.appendChild(autoCheckbox);
+        controls.appendChild(cleanCheckbox);
+        controls.appendChild(this.startButton);
         
         const header = document.createElement('div');
         header.className = 'match-process-header';
@@ -130,6 +193,7 @@ export class MatchProcessPopup {
         buttons.appendChild(closeButton);
         buttons.appendChild(this.acceptButton);
         
+        content.appendChild(controls);
         content.appendChild(header);
         content.appendChild(this.processContainer);
         content.appendChild(statusContainer);
@@ -228,9 +292,16 @@ export class MatchProcessPopup {
 
         window.addEventListener('battleReady', (e) => {
             this.battleReady = true;
-            this.acceptButton.disabled = false;
-            this.acceptButton.textContent = 'Start Battle';
-            this.statusText.textContent = 'Ready to start battle!';
+            if (this.autoMode) {
+                setTimeout(() => {
+                    window.dispatchEvent(new Event('startBattleNow'));
+                    this.hide();
+                }, 500);
+            } else {
+                this.acceptButton.disabled = false;
+                this.acceptButton.textContent = 'Start Battle';
+                this.statusText.textContent = 'Ready to start battle!';
+            }
         });
     }
 
@@ -239,7 +310,7 @@ export class MatchProcessPopup {
         
         switch (type) {
             case 'start':
-                this.startProcess(process);
+                this.startProcessInternal(process);
                 break;
             case 'progress':
                 this.updateProcess(process, details);
@@ -264,12 +335,26 @@ export class MatchProcessPopup {
         this.updateStatusText();
     }
 
-    startProcess(processKey) {
+    startProcess() {
+        if (this.processStarted) return;
+        
+        this.processStarted = true;
+        this.startButton.style.display = 'none';
+        
+        if (this.startProcessCallback) {
+            this.startProcessCallback();
+        }
+    }
+
+    startProcessInternal(processKey) {
         if (this.processes[processKey]) {
             const process = this.processes[processKey];
             process.status = 'processing';
             process.startTime = Date.now();
             process.details = {};
+            if (process.aiStats) {
+                process.aiStats.clear();
+            }
             process.currentStatusMessage = null;
             
             if (process.element) {
@@ -286,6 +371,25 @@ export class MatchProcessPopup {
         if (this.processes[processKey]) {
             const process = this.processes[processKey];
             Object.assign(process.details, details);
+
+            if (details.aiId) {
+                if (!process.aiStats) {
+                    process.aiStats = new Map();
+                }
+                const key = `${details.teamId || ''}-${details.aiId}`;
+                const prev = process.aiStats.get(key) || {};
+                process.aiStats.set(key, {
+                    aiId: details.aiId,
+                    teamId: details.teamId,
+                    teamName: details.teamName || prev.teamName || '',
+                    status: details.status || prev.status || 'processing',
+                    durationSeconds: details.durationSeconds !== undefined ? details.durationSeconds : prev.durationSeconds,
+                    expectedUnits: details.expectedUnits !== undefined ? details.expectedUnits : prev.expectedUnits,
+                    receivedUnits: details.receivedUnits !== undefined ? details.receivedUnits : prev.receivedUnits,
+                    budget: details.budget !== undefined ? details.budget : prev.budget,
+                    spend: details.spend !== undefined ? details.spend : prev.spend
+                });
+            }
             
             if (details.statusMessage) {
                 process.currentStatusMessage = details.statusMessage;
@@ -297,16 +401,59 @@ export class MatchProcessPopup {
             
             if (process.element && process.element.details) {
                 process.element.details.innerHTML = '';
-                for (const [detailKey, detailValue] of Object.entries(process.details)) {
-                    if (detailKey !== 'message' && detailKey !== 'statusMessage') {
-                        const item = document.createElement('div');
-                        item.className = 'detail-item';
-                        item.textContent = `${detailKey}: ${detailValue}`;
-                        process.element.details.appendChild(item);
-                    }
-                }
-                if (Object.keys(process.details).length > 0) {
+
+                if (process.aiStats && process.aiStats.size > 0) {
+                    const table = document.createElement('div');
+                    table.className = 'ai-stats-table';
+
+                    const headerRow = document.createElement('div');
+                    headerRow.className = 'ai-stats-row header';
+                    ['Name', 'Status', 'Time', 'Units'].forEach(text => {
+                        const cell = document.createElement('div');
+                        cell.className = 'ai-stats-cell';
+                        cell.textContent = text;
+                        headerRow.appendChild(cell);
+                    });
+                    table.appendChild(headerRow);
+
+                    process.aiStats.forEach(stat => {
+                        const row = document.createElement('div');
+                        row.className = `ai-stats-row ai-${stat.status || 'processing'}`;
+                        const name = stat.teamName || `${stat.aiId}`;
+                        const time = this.formatDuration(stat.durationSeconds);
+                        let unitsText = '-';
+                        if (stat.budget != null) {
+                            unitsText = `${stat.spend || 0}/${stat.budget}`;
+                        } else if (stat.expectedUnits != null) {
+                            unitsText = `${stat.receivedUnits || 0}/${stat.expectedUnits}`;
+                        } else if (stat.receivedUnits != null) {
+                            unitsText = `${stat.receivedUnits}`;
+                        }
+
+                        [name, stat.status || 'processing', time, unitsText].forEach(value => {
+                            const cell = document.createElement('div');
+                            cell.className = 'ai-stats-cell';
+                            cell.textContent = value;
+                            row.appendChild(cell);
+                        });
+
+                        table.appendChild(row);
+                    });
+
+                    process.element.details.appendChild(table);
                     process.element.details.style.display = 'block';
+                } else {
+                    for (const [detailKey, detailValue] of Object.entries(process.details)) {
+                        if (detailKey !== 'message' && detailKey !== 'statusMessage') {
+                            const item = document.createElement('div');
+                            item.className = 'detail-item';
+                            item.textContent = `${detailKey}: ${detailValue}`;
+                            process.element.details.appendChild(item);
+                        }
+                    }
+                    if (Object.keys(process.details).length > 0) {
+                        process.element.details.style.display = 'block';
+                    }
                 }
             }
         }
@@ -501,12 +648,13 @@ export class MatchProcessPopup {
         }, 1000);
     }
 
-    show(matchId = null, acceptCallback = null, cancelCallback = null) {
+    show(matchId = null, acceptCallback = null, cancelCallback = null, startProcessCallback = null) {
         const isVisible = this.popup.style.display === 'flex';
         
         this.currentMatchId = matchId;
         this.acceptCallback = acceptCallback;
         this.cancelCallback = cancelCallback;
+        this.startProcessCallback = startProcessCallback;
         
         if (!isVisible) {
             if (!this.totalStartTime) {
@@ -517,6 +665,11 @@ export class MatchProcessPopup {
             this.roundWinner = null;
             this.gameWinner = null;
             this.isDraw = false;
+            this.processStarted = false;
+            
+            if (this.startButton) {
+                this.startButton.style.display = 'block';
+            }
             
             if (this.resultElements.roundWin && this.resultElements.roundWin.parentNode) {
                 this.resultElements.roundWin.parentNode.removeChild(this.resultElements.roundWin);
@@ -594,17 +747,69 @@ export class MatchProcessPopup {
         this.totalStartTime = null;
         this.battleReady = false;
         this.isActiveButHidden = false;
+        this.processStarted = false;
         
         Object.keys(this.processes).forEach(key => {
             const process = this.processes[key];
+            process.status = 'pending';
+            process.startTime = null;
+            process.endTime = null;
             process.logs = [];
             process.lastLogCount = 0;
             process.currentStatusMessage = null;
+            process.details = {};
+            process.expanded = false;
+            
             if (process.logsContainer) {
                 process.logsContainer.innerHTML = '';
                 process.logsContainer.style.display = 'none';
             }
+            if (process.element) {
+                process.element.section.className = 'process-section pending';
+                process.element.icon.textContent = '⏳';
+                process.element.time.textContent = '[00:00]';
+                process.element.expandBtn.textContent = '▶';
+                if (process.element.details) {
+                    process.element.details.innerHTML = '';
+                    process.element.details.style.display = 'none';
+                }
+            }
         });
+        
+        if (this.resultElements.roundWin && this.resultElements.roundWin.parentNode) {
+            this.resultElements.roundWin.parentNode.removeChild(this.resultElements.roundWin);
+        }
+        if (this.resultElements.gameWin && this.resultElements.gameWin.parentNode) {
+            this.resultElements.gameWin.parentNode.removeChild(this.resultElements.gameWin);
+        }
+        if (this.resultElements.gameDraw && this.resultElements.gameDraw.parentNode) {
+            this.resultElements.gameDraw.parentNode.removeChild(this.resultElements.gameDraw);
+        }
+        
+        this.resultElements = {
+            roundWin: null,
+            gameWin: null,
+            gameDraw: null
+        };
+        
+        this.roundWinner = null;
+        this.gameWinner = null;
+        this.isDraw = false;
+        this.roundNumber = null;
+        this.totalRounds = null;
+        
+        if (this.startButton) {
+            this.startButton.style.display = 'block';
+        }
+        
+        if (this.acceptButton) {
+            this.acceptButton.disabled = true;
+            this.acceptButton.textContent = 'Accept';
+        }
+        
+        if (this.statusText) {
+            this.statusText.textContent = 'Waiting to start...';
+        }
         
         window.dispatchEvent(new CustomEvent('matchPopupVisibilityChange', {
             detail: { visible: false, canReopen: false }
@@ -620,6 +825,10 @@ export class MatchProcessPopup {
                 detail: { visible: true, canReopen: false }
             }));
         }
+    }
+
+    getCleanMode() {
+        return this.cleanMode;
     }
 }
 

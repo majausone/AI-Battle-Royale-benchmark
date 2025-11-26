@@ -94,6 +94,10 @@ export class ErrorsTab {
         window.addEventListener('errorAdded', (e) => {
             this.renderErrors();
         });
+
+        window.addEventListener('errorsCleared', () => {
+            this.renderErrors();
+        });
     }
 
     getFilteredErrors() {
@@ -144,24 +148,10 @@ export class ErrorsTab {
                                 <th>AI</th>
                                 <th>Team</th>
                                 <th>Message</th>
+                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody id="errors-table-body">
-                        </tbody>
-                    </table>
-                </div>
-                <div class="errors-summary-container">
-                    <h4>Summary by AI</h4>
-                    <table class="errors-summary-table">
-                        <thead>
-                            <tr>
-                                <th>AI Service</th>
-                                <th>Total Errors</th>
-                                <th>Total Warnings</th>
-                                <th>Total Issues</th>
-                            </tr>
-                        </thead>
-                        <tbody id="errors-summary-body">
                         </tbody>
                     </table>
                 </div>
@@ -175,16 +165,25 @@ export class ErrorsTab {
         
         if (!tbody) return;
         
-        tbody.innerHTML = errors.map(error => `
-            <tr class="${error.type}-row">
-                <td><span class="${error.type}-badge">${error.type.toUpperCase()}</span></td>
-                <td>${error.time}</td>
-                <td>${error.file}</td>
-                <td>${error.ai}</td>
-                <td>${error.team}</td>
-                <td>${error.message}</td>
-            </tr>
-        `).join('');
+        tbody.innerHTML = errors.map(error => {
+            const sent = error.sentToData;
+            const reason = error.sendReason;
+            const statusCell = sent
+                ? '<span class="status-badge status-ok">&#10003;</span>'
+                : `<span class="status-badge status-fail">${reason || 'Not sent'}</span>`;
+
+            return `
+                <tr class="${error.type}-row">
+                    <td><span class="${error.type}-badge">${error.type.toUpperCase()}</span></td>
+                    <td>${error.time}</td>
+                    <td>${error.file}</td>
+                    <td>${error.ai}</td>
+                    <td>${error.team}</td>
+                    <td>${error.message}</td>
+                    <td class="status-cell">${statusCell}</td>
+                </tr>
+            `;
+        }).join('');
 
         const errorCount = errors.filter(e => e.type === 'error').length;
         const warningCount = errors.filter(e => e.type === 'warning').length;
@@ -194,35 +193,6 @@ export class ErrorsTab {
         
         if (errorCountElement) errorCountElement.textContent = errorCount;
         if (warningCountElement) warningCountElement.textContent = warningCount;
-        
-        this.renderSummary();
-    }
-
-    renderSummary() {
-        const summary = {};
-        
-        activeErrors.forEach(error => {
-            if (!summary[error.ai]) {
-                summary[error.ai] = { errors: 0, warnings: 0 };
-            }
-            if (error.type === 'error') {
-                summary[error.ai].errors++;
-            } else {
-                summary[error.ai].warnings++;
-            }
-        });
-        
-        const summaryBody = document.getElementById('errors-summary-body');
-        if (!summaryBody) return;
-        
-        summaryBody.innerHTML = Object.entries(summary).map(([ai, counts]) => `
-            <tr>
-                <td>${ai}</td>
-                <td class="error-number">${counts.errors}</td>
-                <td class="warning-number">${counts.warnings}</td>
-                <td><strong>${counts.errors + counts.warnings}</strong></td>
-            </tr>
-        `).join('');
     }
 
     hideGameAreaErrors() {

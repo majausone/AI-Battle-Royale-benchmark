@@ -30,45 +30,49 @@ const handleAsyncRoute = (fn) => async (req, res) => {
 export function setupRouteConfig2Round(app) {
     app.post('/api/config2/round', handleAsyncRoute(async (req) => {
         try {
-            const { currentRound, roundHistory, roundWins } = req.body;
+            const { currentRound, roundHistory, roundWins, matchId: rawMatchId, match_id } = req.body;
+            let targetMatchId = rawMatchId || match_id || null;
 
             const matchStates = await getMatchStates();
+            if (!targetMatchId) {
+                const latestState = matchStates
+                    ? [...matchStates].sort((a, b) => (b.match_id || 0) - (a.match_id || 0))[0]
+                    : null;
+                targetMatchId = latestState?.match_id || null;
+            }
 
-            if (matchStates && matchStates.length > 0) {
-                const matchState = matchStates[0];
+            if (!targetMatchId) {
+                throw new Error('Missing matchId to save round data');
+            }
 
-                if (currentRound !== undefined) {
-                    await updateMatchState(matchState.match_id, currentRound, matchState.status);
+            let matchState = matchStates?.find(ms => ms.match_id === parseInt(targetMatchId, 10));
+
+            if (!matchState) {
+                const newId = await createMatchState(targetMatchId, currentRound || 1, 'in_progress');
+                matchState = { match_id: targetMatchId, current_round: currentRound || 1, status: 'in_progress', id: newId };
+            }
+
+            const effectiveRound = currentRound !== undefined ? currentRound : matchState.current_round;
+            const effectiveStatus = matchState.status || 'in_progress';
+            await updateMatchState(targetMatchId, effectiveRound, effectiveStatus);
+
+            if (roundHistory !== undefined && Array.isArray(roundHistory)) {
+                const existingHistory = await getRoundHistory();
+                for (const rh of existingHistory.filter(r => r.match_id === parseInt(targetMatchId, 10))) {
+                    await deleteRoundHistory(rh.id);
                 }
-
-                if (roundHistory !== undefined && Array.isArray(roundHistory)) {
-                    await clearRoundHistory(matchState.match_id);
-
-                    for (const round of roundHistory) {
-                        await createRoundHistory(matchState.match_id, round.round, round.winner);
-                    }
+                for (const round of roundHistory) {
+                    await createRoundHistory(targetMatchId, round.round, round.winner);
                 }
+            }
 
-                if (roundWins !== undefined) {
-                    await clearRoundWins(matchState.match_id);
-
-                    for (const [teamId, wins] of Object.entries(roundWins)) {
-                        await createRoundWin(matchState.match_id, parseInt(teamId), wins);
-                    }
+            if (roundWins !== undefined) {
+                const existingWins = await getRoundWins();
+                for (const win of existingWins.filter(w => w.match_id === parseInt(targetMatchId, 10))) {
+                    await deleteRoundWin(win.id);
                 }
-            } else {
-                const matchId = await createMatchState(currentRound || 1, 'in_progress');
-
-                if (roundHistory !== undefined && Array.isArray(roundHistory)) {
-                    for (const round of roundHistory) {
-                        await createRoundHistory(matchId, round.round, round.winner);
-                    }
-                }
-
-                if (roundWins !== undefined) {
-                    for (const [teamId, wins] of Object.entries(roundWins)) {
-                        await createRoundWin(matchId, parseInt(teamId), wins);
-                    }
+                for (const [teamId, wins] of Object.entries(roundWins)) {
+                    await createRoundWin(targetMatchId, parseInt(teamId, 10), wins);
                 }
             }
 

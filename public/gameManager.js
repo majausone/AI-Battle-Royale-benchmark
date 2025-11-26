@@ -1,6 +1,6 @@
 import { clearAllCharacters } from './characters.js';
 import { initializeCanvas, render } from './render.js';
-import { updateUI } from './ui.js';
+import { updateUI, clearUI } from './ui.js';
 import * as gameState from './gameState.js';
 
 const gameOverScreen = document.getElementById('game-over');
@@ -17,6 +17,59 @@ let fps = 0;
 let fpsElement = null;
 let unitsCounterElement = null;
 let gameSpeedElement = null;
+let isZooming = false;
+
+function syncSpeedUI(speed) {
+    const slider = document.querySelector('#game-speed-slider');
+    const value = document.querySelector('#game-speed-value');
+    if (slider) slider.value = speed * 100;
+    if (value) value.textContent = `${speed.toFixed(1)}x`;
+}
+
+async function persistGameSpeed(speed) {
+    try {
+        await fetch('/api/config2/display', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ gameSpeed: speed })
+        });
+    } catch (error) {
+        console.error('Error saving game speed:', error);
+    }
+}
+
+function handleKeyDown(e) {
+    const tag = (e.target && e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea') return;
+    if (e.repeat) return;
+
+    if (e.key === 'z' || e.key === 'Z') {
+        if (gameState.selectedUnit) {
+            gameState.setCameraZoom(1.8, gameState.selectedUnit, 500);
+            isZooming = true;
+        }
+    } else if (e.key === 'd' || e.key === 'D') {
+        const newSpeed = Math.min(3.0, gameState.getGameSpeed() + 0.1);
+        gameState.setGameSpeed(newSpeed);
+        syncSpeedUI(newSpeed);
+        persistGameSpeed(newSpeed);
+    } else if (e.key === 's' || e.key === 'S') {
+        const newSpeed = Math.max(0.1, gameState.getGameSpeed() - 0.1);
+        gameState.setGameSpeed(newSpeed);
+        syncSpeedUI(newSpeed);
+        persistGameSpeed(newSpeed);
+    }
+}
+
+function handleKeyUp(e) {
+    const tag = (e.target && e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea') return;
+
+    if ((e.key === 'z' || e.key === 'Z') && isZooming) {
+        gameState.setCameraZoom(1, null, 500);
+        isZooming = false;
+    }
+}
 
 export function gameOver() {
     gameState.setGameOver(true);
@@ -34,6 +87,7 @@ function clearAllGameElements() {
     gameOverScreen.style.display = 'none';
     youWinScreen.style.display = 'none';
     pauseOverlay.style.display = 'none';
+    clearUI();
 
     if (fpsElement) {
         fpsElement.remove();
@@ -110,6 +164,10 @@ function gameLoop() {
 
     if (!gameState.isPaused && !gameState.gameIsOver && gameState.isInitialized) {
         gameState.processGameUpdates(deltaTime);
+        if (isZooming && gameState.selectedUnit) {
+            gameState.refreshCameraTarget(gameState.selectedUnit);
+        }
+        gameState.updateCameraZoom(deltaTime);
         render();
         updateUI();
     }
@@ -234,6 +292,9 @@ export async function initializeGame() {
 
     if (restartButton) restartButton.addEventListener('click', restartGame);
     if (restartLevelButton) restartLevelButton.addEventListener('click', restartGame);
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
 
     requestAnimationFrame(gameLoop);
 }
